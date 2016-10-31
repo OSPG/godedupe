@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -23,8 +24,17 @@ func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
 		fmt.Println("[-]", err)
 	}
-	if opt.excludeEmptyFiles && f.Size() == 0 {
+	if opt.excludeEmptyFiles && !f.IsDir() && f.Size() == 0 {
 		return nil
+	}
+	if opt.excludeEmptyDir && f.IsDir() {
+		files, err := ioutil.ReadDir(f.Name())
+		if err != nil {
+			fmt.Println("[-]", err)
+		}
+		if len(files) == 0 {
+			return nil
+		}
 	}
 	update(f)
 
