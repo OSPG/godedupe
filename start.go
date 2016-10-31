@@ -24,7 +24,7 @@ func update(f os.FileInfo) {
 // Returns true if we have to recurse or false if we don't
 func checkFile(path string, f os.FileInfo) bool {
 	if opt.excludeEmptyFiles && !f.IsDir() && f.Size() == 0 {
-		return true
+		return false
 	}
 
 	if opt.excludeHiddenFiles && strings.HasPrefix(f.Name(), ".") {
@@ -32,7 +32,7 @@ func checkFile(path string, f os.FileInfo) bool {
 		return false
 	}
 	if opt.ignoreSymLinks && f.Mode()&os.ModeSymlink != 0 {
-		return nil
+		return false
 	}
 	update(f)
 
