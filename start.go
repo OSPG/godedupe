@@ -11,12 +11,17 @@ var opt Options
 
 func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
-		log.Println(err)
+		return err
 	}
 
 	if opt.excludeEmptyFiles && f.Size() == 0 {
 		return nil
 	}
+
+	if opt.excludeHiddenFiles && f.Name()[0] == '.' {
+		return nil
+	}
+
 	fmt.Printf("Visited: %s\n", path)
 	return nil
 }
