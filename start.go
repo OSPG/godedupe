@@ -41,9 +41,15 @@ func visit(path string, f os.FileInfo, err error) error {
 		// hidden file or directory
 		return nil
 	}
-
+	if opt.ignoreSymLinks && f.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
 	update(f)
 
+	// only make hash for files, skip dirs
+	if !f.IsDir() {
+
+	}
 	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
 		countDirs, countFiles)
 	return nil

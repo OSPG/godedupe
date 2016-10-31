@@ -13,6 +13,7 @@ var excludeEmptyDir bool
 var excludeEmptyFiles bool
 var excludeHiddenFiles bool
 var showCurrentValues bool
+var ignoreSymLinks bool
 
 // Init the options to run the program
 func Init() {
@@ -23,6 +24,7 @@ func Init() {
 	flag.BoolVar(&excludeHiddenFiles, "h", false, "Exclude the hidden files")
 	flag.BoolVar(&showCurrentValues, "debug", false,
 		"Show the current values of the program options")
+	flag.BoolVar(&ignoreSymLinks, "sym", true, "Ignore symlinks")
 	flag.Parse()
 }
 
@@ -44,6 +46,7 @@ func ShowDebugInfo() {
 		fmt.Println("Exclude empty dirs        :", excludeEmptyDir)
 		fmt.Println("Exclude zero length files :", excludeEmptyFiles)
 		fmt.Println("Exclude hidden files      :", excludeHiddenFiles)
+		fmt.Println("Ignore symlinks           :", ignoreSymLinks)
 		fmt.Println("------------------------")
 	}
 }
@@ -54,6 +57,7 @@ type Options struct {
 	excludeEmptyDir    bool
 	excludeEmptyFiles  bool
 	excludeHiddenFiles bool
+	ignoreSymLinks     bool
 }
 
 func main() {
@@ -66,6 +70,7 @@ func main() {
 		excludeEmptyDir,
 		excludeEmptyFiles,
 		excludeHiddenFiles,
+		ignoreSymLinks,
 	}
 
 	Start(options)
