@@ -19,7 +19,7 @@ func Init() {
 	flag.StringVar(&currentDir, "d", GetUserHome(),
 		"Current directory where the program search for duplicated files")
 	flag.BoolVar(&excludeEmptyDir, "e", false, "Exclude the empty directories")
-	flag.BoolVar(&excludeEmptyFiles, "z", false, "Exclude the zero lenght files")
+	flag.BoolVar(&excludeEmptyFiles, "z", false, "Exclude the zero length files")
 	flag.BoolVar(&excludeHiddenFiles, "h", false, "Exclude the hidden files")
 	flag.BoolVar(&showCurrentValues, "debug", false,
 		"Show the current values of the program options")
@@ -42,7 +42,7 @@ func ShowDebugInfo() {
 		fmt.Println("------------------------")
 		fmt.Println("Directory                 :", currentDir)
 		fmt.Println("Exclude empty dirs        :", excludeEmptyDir)
-		fmt.Println("Exclude zero lenght files :", excludeEmptyFiles)
+		fmt.Println("Exclude zero length files :", excludeEmptyFiles)
 		fmt.Println("Exclude hidden files      :", excludeHiddenFiles)
 		fmt.Println("------------------------")
 	}
