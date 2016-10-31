@@ -33,14 +33,18 @@ func checkFile(path string, f os.FileInfo) bool {
 	if opt.ignoreSymLinks && f.Mode()&os.ModeSymlink != 0 {
 		return false
 	}
+
 	update(f)
 
 	// only make hash for files, skip dirs
 	if !f.IsDir() {
-
+		CompareFile(f, path)
 	}
+
 	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
 		countDirs, countFiles)
+
+	//fmt.Println(path)
 
 	return true
 }
@@ -60,7 +64,7 @@ func readDir(s string) error {
 		recurse := checkFile(path, file)
 
 		if recurse && file.IsDir() {
-			readDir(path)
+			go readDir(path)
 		}
 	}
 	return nil
