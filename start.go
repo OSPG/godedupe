@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var opt Options
@@ -28,7 +29,7 @@ func visit(path string, f os.FileInfo, err error) error {
 		return nil
 	}
 	if opt.excludeEmptyDir && f.IsDir() {
-		files, err := ioutil.ReadDir(f.Name())
+		files, err := ioutil.ReadDir(path)
 		if err != nil {
 			fmt.Println("[-]", err)
 		}
@@ -36,6 +37,11 @@ func visit(path string, f os.FileInfo, err error) error {
 			return nil
 		}
 	}
+	if opt.excludeHiddenFiles && strings.HasPrefix(f.Name(), ".") {
+		// hidden file or directory
+		return nil
+	}
+
 	update(f)
 
 	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
