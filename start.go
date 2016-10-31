@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -12,33 +11,36 @@ var opt Options
 var countDirs int
 var countFiles int
 
-func visit(path string, f os.FileInfo, err error) error {
-	if err != nil {
-		log.Println(err)
-	}
-	if opt.excludeEmptyFiles && f.Size() == 0 {
-		return nil
-	}
+func update(f os.FileInfo) {
 	if f.IsDir() {
 		countDirs++
 	} else {
 		countFiles++
 	}
-	fmt.Printf("Analyzed: %v directories and %v files\r", countDirs, countFiles)
+}
+
+func visit(path string, f os.FileInfo, err error) error {
+	if err != nil {
+		fmt.Println("[-]", err)
+	}
+	if opt.excludeEmptyFiles && f.Size() == 0 {
+		return nil
+	}
+	update(f)
+
+	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
+		countDirs, countFiles)
 	return nil
 }
 
 // Start the program with the current options. Options param is read only
 func Start(options Options) {
 	opt = options
-
-	dir := opt.currentDir
-	fmt.Println("Starting in directory:", dir)
-	err := filepath.Walk(dir, visit)
-
-	fmt.Println()
+	fmt.Println("[+] Starting in directory:", opt.currentDir)
+	err := filepath.Walk(opt.currentDir, visit)
 
 	if err != nil {
-		log.Println(err)
+		fmt.Println("[-]", err)
 	}
+	fmt.Println()
 }
