@@ -18,7 +18,7 @@ var showCurrentValues bool
 func Init() {
 	flag.StringVar(&currentDir, "d", GetUserHome(),
 		"Current directory where the program search for duplicated files")
-	flag.BoolVar(&excludeEmptyDir, "e", false, "Exclude the empty directories")
+	flag.BoolVar(&excludeEmptyDir, "e", true, "Exclude the empty directories")
 	flag.BoolVar(&excludeEmptyFiles, "z", false, "Exclude the zero length files")
 	flag.BoolVar(&excludeHiddenFiles, "h", false, "Exclude the hidden files")
 	flag.BoolVar(&showCurrentValues, "debug", false,

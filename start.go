@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -21,31 +20,44 @@ func update(f os.FileInfo) {
 	}
 }
 
-func visit(path string, f os.FileInfo, err error) error {
-	if err != nil {
-		fmt.Println("[-]", err)
-	}
+// checkFile checks if we have to add this file.
+// Returns true if we have to recurse or false if we don't
+func checkFile(path string, f os.FileInfo) bool {
 	if opt.excludeEmptyFiles && !f.IsDir() && f.Size() == 0 {
-		return nil
+		return true
 	}
-	if opt.excludeEmptyDir && f.IsDir() {
-		files, err := ioutil.ReadDir(path)
-		if err != nil {
-			fmt.Println("[-]", err)
-		}
-		if len(files) == 0 {
-			return nil
-		}
-	}
+
 	if opt.excludeHiddenFiles && strings.HasPrefix(f.Name(), ".") {
 		// hidden file or directory
-		return nil
+		return false
 	}
 
 	update(f)
 
 	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
 		countDirs, countFiles)
+
+	return true
+}
+
+func readDir(s string) error {
+	files, err := ioutil.ReadDir(s)
+	if err != nil {
+		return err
+	}
+
+	if opt.excludeEmptyDir && len(files) == 0 {
+		return nil
+	}
+
+	for _, file := range files {
+		path := s + "/" + file.Name()
+		recurse := checkFile(path, file)
+
+		if recurse && file.IsDir() {
+			readDir(path)
+		}
+	}
 	return nil
 }
 
@@ -53,10 +65,11 @@ func visit(path string, f os.FileInfo, err error) error {
 func Start(options Options) {
 	opt = options
 	fmt.Println("[+] Starting in directory:", opt.currentDir)
-	err := filepath.Walk(opt.currentDir, visit)
 
+	err := readDir(opt.currentDir)
 	if err != nil {
 		fmt.Println("[-]", err)
 	}
+
 	fmt.Println()
 }
