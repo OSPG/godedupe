@@ -9,15 +9,22 @@ import (
 
 var opt Options
 
+var countDirs int
+var countFiles int
+
 func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
 		log.Println(err)
 	}
-
 	if opt.excludeEmptyFiles && f.Size() == 0 {
 		return nil
 	}
-	fmt.Printf("Visited: %s\n", path)
+	if f.IsDir() {
+		countDirs++
+	} else {
+		countFiles++
+	}
+	fmt.Printf("Analyzed: %v directories and %v files\r", countDirs, countFiles)
 	return nil
 }
 
@@ -28,6 +35,8 @@ func Start(options Options) {
 	dir := opt.currentDir
 	fmt.Println("Starting in directory:", dir)
 	err := filepath.Walk(dir, visit)
+
+	fmt.Println()
 
 	if err != nil {
 		log.Println(err)
