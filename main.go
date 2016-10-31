@@ -9,7 +9,6 @@ const name string = "godedupe"
 const version string = "0.0.1"
 
 var currentDir string
-var currentVersion string
 var excludeEmptyDir bool
 var excludeEmptyFiles bool
 var excludeHiddenFiles bool
@@ -49,10 +48,25 @@ func ShowDebugInfo() {
 	}
 }
 
+// Options for start the program
+type Options struct {
+	currentDir         string
+	excludeEmptyDir    bool
+	excludeEmptyFiles  bool
+	excludeHiddenFiles bool
+}
+
 func main() {
 	Header()
 	Init()
 	ShowDebugInfo()
 
-	fmt.Println("\nStarting in directory:", currentDir)
+	options := Options{
+		currentDir,
+		excludeEmptyDir,
+		excludeEmptyFiles,
+		excludeHiddenFiles,
+	}
+
+	Start(options)
 }
