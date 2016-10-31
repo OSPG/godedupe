@@ -64,7 +64,7 @@ func readDir(s string) error {
 		recurse := checkFile(path, file)
 
 		if recurse && file.IsDir() {
-			go readDir(path)
+			readDir(path)
 		}
 	}
 	return nil
