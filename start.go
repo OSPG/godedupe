@@ -26,7 +26,6 @@ func checkFile(path string, f os.FileInfo) bool {
 	if opt.excludeEmptyFiles && !f.IsDir() && f.Size() == 0 {
 		return false
 	}
-
 	if opt.excludeHiddenFiles && strings.HasPrefix(f.Name(), ".") {
 		// hidden file or directory
 		return false
@@ -70,6 +69,11 @@ func readDir(s string) error {
 // Start the program with the current options. Options param is read only
 func Start(options Options) {
 	opt = options
+
+	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() {
+		fmt.Printf("[-] %s is not a valid directory", info.Name())
+		return
+	}
 	fmt.Println("[+] Starting in directory:", opt.currentDir)
 
 	err := readDir(opt.currentDir)
