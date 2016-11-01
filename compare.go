@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
 )
 
 type File struct {
@@ -18,8 +17,6 @@ type Duplicated struct {
 }
 
 var duplicated_files map[[md5.Size]byte]Duplicated = make(map[[md5.Size]byte]Duplicated)
-
-var mutex sync.Mutex
 
 func CompareFile(f os.FileInfo, path string) {
 	file := File{
@@ -36,7 +33,6 @@ func CompareFile(f os.FileInfo, path string) {
 	hash := md5.Sum(file_content)
 
 	//Check if it exist a duplicated of the current file
-	mutex.Lock()
 	if val, ok := duplicated_files[hash]; ok {
 		fmt.Println()
 		fmt.Println("Duplicated file: " + path)
@@ -49,8 +45,7 @@ func CompareFile(f os.FileInfo, path string) {
 		d := Duplicated{
 			file_slice,
 		}
+
 		duplicated_files[hash] = d
 	}
-	mutex.Unlock()
-
 }

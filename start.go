@@ -38,7 +38,7 @@ func checkFile(path string, f os.FileInfo) bool {
 
 	// only make hash for files, skip dirs
 	if !f.IsDir() {
-		go CompareFile(f, path)
+		CompareFile(f, path)
 	}
 
 	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
