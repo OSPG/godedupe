@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -24,13 +23,14 @@ func CompareFile(f os.FileInfo, path string) {
 		f,
 	}
 
-	//TODO: Puting all the file in memory is not cool, it's only a POC
-	file_content, err := ioutil.ReadFile(path)
+	tmp, err := ComputeMD5(path)
 	if err != nil {
 		return
 	}
 
-	hash := md5.Sum(file_content)
+	//Convert from slice to array
+	var hash [md5.Size]byte
+	copy(hash[:], tmp)
 
 	//Check if it exist a duplicated of the current file
 	if val, ok := duplicated_files[hash]; ok {
