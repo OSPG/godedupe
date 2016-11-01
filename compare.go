@@ -3,12 +3,10 @@ package main
 import (
 	"crypto/md5"
 	"fmt"
-	"os"
 )
 
 type File struct {
 	path string
-	f    os.FileInfo
 }
 
 type Duplicated struct {
@@ -17,12 +15,7 @@ type Duplicated struct {
 
 var duplicated_files map[[md5.Size]byte]Duplicated = make(map[[md5.Size]byte]Duplicated)
 
-func CompareFile(f os.FileInfo, path string) {
-	file := File{
-		path,
-		f,
-	}
-
+func CompareFile(path string) {
 	tmp, err := ComputeMD5(path)
 	if err != nil {
 		return
@@ -31,6 +24,10 @@ func CompareFile(f os.FileInfo, path string) {
 	//Convert from slice to array
 	var hash [md5.Size]byte
 	copy(hash[:], tmp)
+
+	file := File{
+		path,
+	}
 
 	//Check if it exist a duplicated of the current file
 	if val, ok := duplicated_files[hash]; ok {
