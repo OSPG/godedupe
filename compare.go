@@ -15,6 +15,9 @@ type Duplicated struct {
 
 var duplicated_files map[[md5.Size]byte]Duplicated = make(map[[md5.Size]byte]Duplicated)
 
+
+// CompareFile checks if the hash of the "path" file are in the map, in that case, append it to the list_duplicated
+// otherwise creates a new Duplicated for storing future duplicates of the current file
 func CompareFile(path string) {
 	tmp, err := ComputeMD5(path)
 	if err != nil {

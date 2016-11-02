@@ -49,6 +49,8 @@ func checkFile(path string, f os.FileInfo) bool {
 	return true
 }
 
+
+// readDir reads the files from the dir "s" recursively and checks if there are duplicated
 func readDir(s string) error {
 	files, err := ioutil.ReadDir(s)
 	if err != nil {
