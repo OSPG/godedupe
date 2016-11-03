@@ -9,8 +9,10 @@ import (
 
 var opt Options
 
-var countDirs int
-var countFiles int
+var (
+	countDirs  int
+	countFiles int
+)
 
 func update(f os.FileInfo) {
 	if f.IsDir() {

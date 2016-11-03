@@ -5,15 +5,19 @@ import (
 	"fmt"
 )
 
-const name string = "godedupe"
-const version string = "0.0.1"
+const (
+	name    string = "godedupe"
+	version string = "0.0.1"
+)
 
-var currentDir string
-var excludeEmptyDir bool
-var excludeEmptyFiles bool
-var excludeHiddenFiles bool
-var showCurrentValues bool
-var ignoreSymLinks bool
+var (
+	currentDir         string
+	excludeEmptyDir    bool
+	excludeEmptyFiles  bool
+	excludeHiddenFiles bool
+	showCurrentValues  bool
+	ignoreSymLinks     bool
+)
 
 // Init the options to run the program
 func Init() {
