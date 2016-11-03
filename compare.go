@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"fmt"
 	"os"
 )
@@ -15,18 +14,21 @@ type Duplicated struct {
 	list_duplicated []File
 }
 
-var Duplicated_files map[[md5.Size]byte]Duplicated = make(map[[md5.Size]byte]Duplicated)
+// By default blake2b uses a size of 64, but we will use New256 not New512 so size should be 32
+const blakeSize int = 32
+
+var Duplicated_files map[[blakeSize]byte]Duplicated = make(map[[blakeSize]byte]Duplicated)
 
 // CompareFile checks if the hash of the "path" file are in the map, in that case, append it to the list_duplicated
 // otherwise creates a new Duplicated for storing future duplicates of the current file
 func CompareFile(path string, f os.FileInfo) {
-	tmp, err := ComputeMD5(path)
+	tmp, err := ComputeHash(path)
 	if err != nil {
 		return
 	}
 
 	//Convert from slice to array
-	var hash [md5.Size]byte
+	var hash [blakeSize]byte
 	copy(hash[:], tmp)
 
 	file := File{

@@ -1,10 +1,11 @@
 package main
 
 import (
-	"crypto/md5"
 	"io"
 	"os"
 	"os/user"
+
+	blake "github.com/minio/blake2b-simd"
 )
 
 // GetUserHome obtain the current home directory of the user
@@ -17,7 +18,7 @@ func GetUserHome() string {
 	return usr.HomeDir
 }
 
-func ComputeMD5(filePath string) ([]byte, error) {
+func ComputeHash(filePath string) ([]byte, error) {
 	var result []byte
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -25,7 +26,7 @@ func ComputeMD5(filePath string) ([]byte, error) {
 	}
 	defer file.Close()
 
-	hash := md5.New()
+	hash := blake.New256()
 	if _, err := io.Copy(hash, file); err != nil {
 		return result, err
 	}
