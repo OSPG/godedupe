@@ -16,19 +16,35 @@ var (
 	excludeEmptyFiles  bool
 	excludeHiddenFiles bool
 	showCurrentValues  bool
+	enableRecursion    bool
 	ignoreSymLinks     bool
+	showSummary        bool
+	quiet              bool
 )
+
+// Options for start the program
+type Options struct {
+	currentDir         string
+	excludeEmptyFiles  bool
+	excludeHiddenFiles bool
+	enableRecursion    bool
+	ignoreSymLinks     bool
+	showSummary        bool
+	quiet              bool
+}
 
 // Init the options to run the program
 func Init() {
-	flag.StringVar(&currentDir, "d", GetUserHome(),
+	flag.StringVar(&currentDir, "t", GetUserHome(),
 		"Current directory where the program search for duplicated files")
-	flag.BoolVar(&excludeEmptyDir, "e", true, "Exclude the empty directories")
-	flag.BoolVar(&excludeEmptyFiles, "z", false, "Exclude the zero length files")
-	flag.BoolVar(&excludeHiddenFiles, "h", false, "Exclude the hidden files")
+	flag.BoolVar(&excludeEmptyFiles, "z", true, "Exclude the zero length files")
+	flag.BoolVar(&excludeHiddenFiles, "h", true, "Exclude the hidden files")
 	flag.BoolVar(&showCurrentValues, "debug", false,
 		"Show the current values of the program options")
+	flag.BoolVar(&enableRecursion, "r", true, "Follow subdirectories (recursion)")
 	flag.BoolVar(&ignoreSymLinks, "sym", true, "Ignore symlinks")
+	flag.BoolVar(&showSummary, "m", false, "Show a summary")
+	flag.BoolVar(&quiet, "q", false, "Don't show status info")
 	flag.Parse()
 }
 
@@ -46,22 +62,15 @@ func ShowDebugInfo() {
 		fmt.Println("------------------------")
 		fmt.Println("Current option values")
 		fmt.Println("------------------------")
-		fmt.Println("Directory                 :", currentDir)
-		fmt.Println("Exclude empty dirs        :", excludeEmptyDir)
+		fmt.Println("Target directory          :", currentDir)
 		fmt.Println("Exclude zero length files :", excludeEmptyFiles)
 		fmt.Println("Exclude hidden files      :", excludeHiddenFiles)
 		fmt.Println("Ignore symlinks           :", ignoreSymLinks)
+		fmt.Println("Recursive search          :", enableRecursion)
+		fmt.Println("Show a summary		       :", showSummary)
+		fmt.Println("Quiet			           :", quiet)
 		fmt.Println("------------------------")
 	}
-}
-
-// Options for start the program
-type Options struct {
-	currentDir         string
-	excludeEmptyDir    bool
-	excludeEmptyFiles  bool
-	excludeHiddenFiles bool
-	ignoreSymLinks     bool
 }
 
 func main() {
@@ -71,10 +80,12 @@ func main() {
 
 	options := Options{
 		currentDir,
-		excludeEmptyDir,
 		excludeEmptyFiles,
 		excludeHiddenFiles,
+		enableRecursion,
 		ignoreSymLinks,
+		showSummary,
+		quiet,
 	}
 
 	Start(options)

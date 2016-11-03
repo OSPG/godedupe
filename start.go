@@ -40,17 +40,18 @@ func checkFile(path string, f os.FileInfo) bool {
 
 	// only make hash for files, skip dirs
 	if !f.IsDir() {
-		CompareFile(path)
+		CompareFile(path, f)
 	}
 
-	fmt.Printf("[+] Analyzed: %v directories and %v files\r",
-		countDirs, countFiles)
+	if !opt.quiet {
+		fmt.Printf("[+] Analyzed: %v directories and %v files\r",
+			countDirs, countFiles)
+	}
 
 	//fmt.Println(path)
 
 	return true
 }
-
 
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
 func readDir(s string) error {
@@ -59,7 +60,7 @@ func readDir(s string) error {
 		return err
 	}
 
-	if opt.excludeEmptyDir && len(files) == 0 {
+	if len(files) == 0 {
 		return nil
 	}
 
@@ -67,7 +68,7 @@ func readDir(s string) error {
 		path := s + "/" + file.Name()
 		recurse := checkFile(path, file)
 
-		if recurse && file.IsDir() {
+		if opt.enableRecursion && recurse && file.IsDir() {
 			readDir(path)
 		}
 	}
@@ -87,6 +88,23 @@ func Start(options Options) {
 	err := readDir(opt.currentDir)
 	if err != nil {
 		fmt.Println("[-]", err)
+	}
+
+	if opt.showSummary {
+		num_dup := 0
+		sets := 0
+		total_size := int64(0)
+		for _, v := range Duplicated_files {
+			dups := len(v.list_duplicated) - 1
+			num_dup += dups
+			if dups > 0 {
+				sets += 1
+				for _, f := range v.list_duplicated[1:] {
+					total_size += f.info.Size()
+				}
+			}
+		}
+		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes", num_dup, sets, total_size)
 	}
 
 	fmt.Println()
