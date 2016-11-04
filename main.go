@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"runtime/pprof"
 )
 
 const (
@@ -11,6 +13,8 @@ const (
 )
 
 var (
+	cpuprofile string
+
 	currentDir         string
 	excludeEmptyDir    bool
 	excludeEmptyFiles  bool
@@ -35,6 +39,8 @@ type Options struct {
 
 // Init the options to run the program
 func Init() {
+	flag.StringVar(&cpuprofile, "cpuprofile", "", "Enable profiling")
+
 	flag.StringVar(&currentDir, "t", GetUserHome(),
 		"Current directory where the program search for duplicated files")
 	flag.BoolVar(&excludeEmptyFiles, "z", true, "Exclude the zero length files")
@@ -67,8 +73,11 @@ func ShowDebugInfo() {
 		fmt.Println("Exclude hidden files      :", excludeHiddenFiles)
 		fmt.Println("Ignore symlinks           :", ignoreSymLinks)
 		fmt.Println("Recursive search          :", enableRecursion)
-		fmt.Println("Show a summary		       :", showSummary)
-		fmt.Println("Quiet			           :", quiet)
+		fmt.Println("Show a summary            :", showSummary)
+		fmt.Println("Quiet                     :", quiet)
+		if cpuprofile != "" {
+			fmt.Println("Profile output            :", cpuprofile)
+		}
 		fmt.Println("------------------------")
 	}
 }
@@ -86,6 +95,15 @@ func main() {
 		ignoreSymLinks,
 		showSummary,
 		quiet,
+	}
+
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	Start(options)
