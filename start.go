@@ -24,23 +24,23 @@ func update(f os.FileInfo) {
 
 // checkFile checks if we have to add this file.
 // Returns true if we have to recurse or false if we don't
-func checkFile(path string, f os.FileInfo) bool {
-	if opt.excludeEmptyFiles && !f.IsDir() && f.Size() == 0 {
+func checkFile(file File) bool {
+	if opt.excludeEmptyFiles && !file.info.IsDir() && file.info.Size() == 0 {
 		return false
 	}
-	if opt.excludeHiddenFiles && strings.HasPrefix(f.Name(), ".") {
+	if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
 		// hidden file or directory
 		return false
 	}
-	if opt.ignoreSymLinks && f.Mode()&os.ModeSymlink != 0 {
+	if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
 		return false
 	}
 
-	update(f)
+	update(file.info)
 
 	// only make hash for files, skip dirs
-	if !f.IsDir() {
-		CompareFile(path, f)
+	if !file.info.IsDir() {
+		CompareFile(file)
 	}
 
 	if !opt.quiet {
@@ -64,11 +64,16 @@ func readDir(s string) error {
 		return nil
 	}
 
-	for _, file := range files {
-		path := s + "/" + file.Name()
-		recurse := checkFile(path, file)
+	for _, f := range files {
+		path := s + "/" + f.Name()
+		file := File{
+			path,
+			f,
+		}
 
-		if opt.enableRecursion && recurse && file.IsDir() {
+		recurse := checkFile(file)
+
+		if opt.enableRecursion && recurse && file.info.IsDir() {
 			readDir(path)
 		}
 	}

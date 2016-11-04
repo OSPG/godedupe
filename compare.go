@@ -21,8 +21,8 @@ var Duplicated_files map[[blakeSize]byte]Duplicated = make(map[[blakeSize]byte]D
 
 // CompareFile checks if the hash of the "path" file are in the map, in that case, append it to the list_duplicated
 // otherwise creates a new Duplicated for storing future duplicates of the current file
-func CompareFile(path string, f os.FileInfo) {
-	tmp, err := ComputeHash(path)
+func CompareFile(file File) {
+	tmp, err := ComputeHash(file.path)
 	if err != nil {
 		return
 	}
@@ -31,15 +31,10 @@ func CompareFile(path string, f os.FileInfo) {
 	var hash [blakeSize]byte
 	copy(hash[:], tmp)
 
-	file := File{
-		path,
-		f,
-	}
-
 	//Check if it exist a duplicated of the current file
 	if val, ok := Duplicated_files[hash]; ok {
 		fmt.Println()
-		fmt.Println("Duplicated file: " + path)
+		fmt.Println("Duplicated file: " + file.path)
 		fmt.Println("First duplicated file: " + val.list_duplicated[0].path)
 		fmt.Println()
 		val.list_duplicated = append(val.list_duplicated, file)
