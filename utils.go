@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"os/user"
@@ -18,18 +19,44 @@ func GetUserHome() string {
 	return usr.HomeDir
 }
 
-func ComputeHash(filePath string) ([]byte, error) {
-	var result []byte
-	file, err := os.Open(filePath)
+const bufferSize = 2 * 1024
+
+// ComputeHash calculates the hash for the current file
+// if bufferNumber is not zero then we will only hash the first bufferNumber blocks (bufferSize)
+func ComputeHash(filename string, bufNumber int) ([]byte, error) {
+	file, err := os.Open(filename)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer file.Close()
 
 	hash := blake.New256()
-	if _, err := io.Copy(hash, file); err != nil {
-		return result, err
+	buf, reader := make([]byte, bufferSize), bufio.NewReader(file)
+	if bufNumber <= 0 {
+		for {
+			n, err := reader.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, err
+			}
+
+			hash.Write(buf[:n])
+		}
+	} else {
+		for ; bufNumber > 0; bufNumber -= 1 {
+			n, err := reader.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, err
+			}
+
+			hash.Write(buf[:n])
+		}
 	}
 
-	return hash.Sum(result), nil
+	return hash.Sum(nil), nil
 }

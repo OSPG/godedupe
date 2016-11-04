@@ -40,7 +40,7 @@ func checkFile(file File) bool {
 
 	// only make hash for files, skip dirs
 	if !file.info.IsDir() {
-		CompareFile(file)
+		ComparePartialFile(file)
 	}
 
 	if !opt.quiet {
@@ -86,15 +86,12 @@ func reportDuplicated(showSummary bool) {
 	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
 	fmt.Printf("-------------------------\n")
 
-	for k, v := range Duplicated_files {
-		dups := len(v.list_duplicated) - 1
-		if dups > 0 {
-			fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
-			for _, f := range v.list_duplicated {
-				fmt.Println(f.path)
-			}
-			fmt.Printf("-------------------------\n")
+	for k, v := range DuplicatedFiles {
+		fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
+		for _, f := range v.list_duplicated {
+			fmt.Println(f.path)
 		}
+		fmt.Printf("-------------------------\n")
 	}
 
 	fmt.Println("END OF LIST")
@@ -104,14 +101,12 @@ func reportDuplicated(showSummary bool) {
 		num_dup := 0
 		sets := 0
 		total_size := int64(0)
-		for _, v := range Duplicated_files {
+		for _, v := range DuplicatedFiles {
 			dups := len(v.list_duplicated) - 1
 			num_dup += dups
-			if dups > 0 {
-				sets += 1
-				for _, f := range v.list_duplicated[1:] {
-					total_size += f.info.Size()
-				}
+			sets += 1
+			for _, f := range v.list_duplicated[1:] {
+				total_size += f.info.Size()
 			}
 		}
 		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes", num_dup, sets, total_size)
@@ -132,6 +127,10 @@ func Start(options Options) {
 	if err != nil {
 		fmt.Println("[-]", err)
 	}
+
+	fmt.Printf("\nPartial search done. Deleting false positives\n")
+
+	ValidateDuplicatedFiles()
 
 	reportDuplicated(opt.showSummary)
 
