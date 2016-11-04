@@ -8,7 +8,7 @@ The version 1.0.0 is our first version. In this version the only supported OS wi
 but (at least) it is able to find duplicate files like fdupes does. 
 
 With the release of version 2.0.0 its planned to be able to find files which are almost identical. Useful for example when one file 
-is a modern version of other file, in this case the md5 sum will not be the same, but our program should be able to identify it.
+is a modern version of other file, in this case the BLAKE sum will not be the same, but our program should be able to identify it.
 
 ### Version naming
 
@@ -25,6 +25,6 @@ type Duplicated struct {
 }
 ```
 
-Then we hash the file that we want to test and check if this hash is already in the map, if it's true we append the File we just
+Then we hash with the BLAKE algorithm the file that we want to test and check if this hash is already in the map, if it's true we append the File we just
 tested to the `list_duplicated` and report that there is a duplicated, if it's false we create a new `Duplicated` and append the
  file we just checked to `list_duplicated`.
