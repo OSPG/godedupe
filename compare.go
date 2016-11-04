@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -33,10 +32,6 @@ func CompareFile(file File) {
 
 	//Check if it exist a duplicated of the current file
 	if val, ok := Duplicated_files[hash]; ok {
-		fmt.Println()
-		fmt.Println("Duplicated file: " + file.path)
-		fmt.Println("First duplicated file: " + val.list_duplicated[0].path)
-		fmt.Println()
 		val.list_duplicated = append(val.list_duplicated, file)
 		Duplicated_files[hash] = val
 	} else {

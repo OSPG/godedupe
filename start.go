@@ -80,22 +80,27 @@ func readDir(s string) error {
 	return nil
 }
 
-// Start the program with the current options. Options param is read only
-func Start(options Options) {
-	opt = options
+// reportDuplicated shows all the information regarding our duplicated files
+// if showSummary is true then a summary will printed too
+func reportDuplicated(showSummary bool) {
+	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
+	fmt.Printf("-------------------------\n")
 
-	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() {
-		fmt.Printf("[-] %s is not a valid directory", info.Name())
-		return
+	for k, v := range Duplicated_files {
+		dups := len(v.list_duplicated) - 1
+		if dups > 0 {
+			fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
+			for _, f := range v.list_duplicated {
+				fmt.Println(f.path)
+			}
+			fmt.Printf("-------------------------\n")
+		}
 	}
-	fmt.Println("[+] Starting in directory:", opt.currentDir)
 
-	err := readDir(opt.currentDir)
-	if err != nil {
-		fmt.Println("[-]", err)
-	}
+	fmt.Println("END OF LIST")
+	fmt.Println()
 
-	if opt.showSummary {
+	if showSummary {
 		num_dup := 0
 		sets := 0
 		total_size := int64(0)
@@ -111,6 +116,24 @@ func Start(options Options) {
 		}
 		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes", num_dup, sets, total_size)
 	}
+}
+
+// Start the program with the current options. Options param is read only
+func Start(options Options) {
+	opt = options
+
+	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() {
+		fmt.Printf("[-] %s is not a valid directory", info.Name())
+		return
+	}
+	fmt.Println("[+] Starting in directory:", opt.currentDir)
+
+	err := readDir(opt.currentDir)
+	if err != nil {
+		fmt.Println("[-]", err)
+	}
+
+	reportDuplicated(opt.showSummary)
 
 	fmt.Println()
 }
