@@ -91,7 +91,7 @@ func AddFile(file File) {
 func ValidateDuplicatedFiles() {
 	cleanUnmarried(partialDuplicatedFiles)
 
-	fmt.Printf("[+] From %d files, %d need to be rechecked.\n", len(dupFileSize), len(partialDuplicatedFiles))
+	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n", len(dupFileSize), len(partialDuplicatedFiles))
 	fmt.Printf("[+] Starting stage 3 / 3.\n")
 
 	i := 0
@@ -118,7 +118,7 @@ func DoCompare() {
 		}
 	}
 
-	fmt.Printf("[+] From %d files, %d need to be rechecked.\n", originalSize, len(dupFileSize))
+	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n", originalSize, len(dupFileSize))
 	fmt.Printf("[+] Starting stage 2 / 3.\n")
 
 	i := 0
