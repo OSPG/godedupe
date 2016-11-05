@@ -14,8 +14,7 @@ const (
 )
 
 var (
-	cpuprofile string
-
+	cpuprofile         string
 	currentDir         string
 	excludeEmptyDir    bool
 	excludeEmptyFiles  bool
@@ -87,7 +86,7 @@ func showDebugInfo() {
 func trackTime(now time.Time) {
 	expired := time.Since(now)
 	if !quiet {
-		fmt.Printf("Program terminated in %v\n", expired)
+		fmt.Printf("[+] Program terminated in %v\n", expired)
 	}
 }
 

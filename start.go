@@ -80,19 +80,19 @@ func reportDuplicated(showSummary bool) {
 	if opt.quiet {
 		return
 	}
-	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
-	fmt.Printf("-------------------------\n")
+	//fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
+	//fmt.Printf("-------------------------\n")
 
-	for k, v := range DuplicatedFiles {
-		fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
-		for _, f := range v.listDuplicated {
-			fmt.Println(f.path)
-		}
-		fmt.Printf("-------------------------\n")
-	}
+	//for k, v := range DuplicatedFiles {
+	//	fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
+	//	for _, f := range v.listDuplicated {
+	//		fmt.Println(f.path)
+	//	}
+	//	fmt.Printf("-------------------------\n")
+	//}
 
-	fmt.Println("END OF LIST")
-	fmt.Println()
+	//fmt.Println("END OF LIST")
+	//fmt.Println()
 
 	if showSummary {
 		numDup := 0
@@ -106,7 +106,7 @@ func reportDuplicated(showSummary bool) {
 				totalSize += f.info.Size()
 			}
 		}
-		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes",
+		fmt.Printf("[+] %d duplicated files (in %d sets), occupying %d bytes",
 			numDup, sets, totalSize)
 	}
 }
@@ -129,7 +129,7 @@ func Start(options Options) {
 	}
 
 	if !opt.quiet {
-		fmt.Printf("\nPartial search done. Deleting false positives\n")
+		fmt.Printf("\n[+] Partial search done. Deleting false positives\n")
 	}
 
 	ValidateDuplicatedFiles()
