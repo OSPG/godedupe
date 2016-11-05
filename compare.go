@@ -91,7 +91,12 @@ func AddFile(file File) {
 func ValidateDuplicatedFiles() {
 	cleanUnmarried(partialDuplicatedFiles)
 
-	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n", len(dupFileSize), len(partialDuplicatedFiles))
+	var setsDuplicated int
+	for _, v := range partialDuplicatedFiles {
+		setsDuplicated += len(v.listDuplicated)
+	}
+	fmt.Printf("[+] From %d sets, %d need to be rechecked\n",
+		setsDuplicated, len(partialDuplicatedFiles))
 	fmt.Printf("[+] Starting stage 3 / 3.\n")
 
 	i := 0
@@ -110,15 +115,19 @@ func ValidateDuplicatedFiles() {
 
 // DoCompare make a partial file comparison
 func DoCompare() {
-	originalSize := len(dupFileSize)
+	//originalSize := len(dupFileSize)
 	for k, v := range dupFileSize {
 		dups := len(v.listDuplicated) - 1
 		if dups == 0 {
 			delete(dupFileSize, k)
 		}
 	}
-
-	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n", originalSize, len(dupFileSize))
+	var setsDuplicated int
+	for _, v := range dupFileSize {
+		setsDuplicated += len(v.listDuplicated)
+	}
+	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n",
+		setsDuplicated, len(dupFileSize))
 	fmt.Printf("[+] Starting stage 2 / 3.\n")
 
 	i := 0
