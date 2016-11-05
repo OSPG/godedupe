@@ -25,7 +25,7 @@ type Duplicated struct {
 }
 ```
 
-Then we hash with the BLAKE algorithm the file that we want to test and check if this hash is already in the map, if it's true we append the File we just
+Then we hash with the [BLAKE](https://github.com/minio/blake2b-simd) algorithm the file that we want to test and check if this hash is already in the map, if it's true we append the File we just
 tested to the `listDuplicated` and report that there is a duplicated, if it's false we create a new `Duplicated` and append the
  file we just checked to `listDuplicated`.
 
