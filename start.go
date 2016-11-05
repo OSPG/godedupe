@@ -40,7 +40,7 @@ func checkFile(file File) bool {
 
 	// only make hash for files, skip dirs
 	if !file.info.IsDir() {
-		ComparePartialFile(file)
+		AddFile(file)
 	}
 	if !opt.quiet {
 		fmt.Printf("[+] Analyzed: %v directories and %v files\r",
@@ -93,9 +93,10 @@ func Start(options Options) {
 	}
 
 	if !opt.quiet {
-		fmt.Printf("\n[+] Partial search done. Deleting false positives\n")
+		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
 
+	DoCompare()
 	ValidateDuplicatedFiles()
 
 	reportData := ObtainReportData()
