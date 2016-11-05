@@ -18,8 +18,8 @@ type Duplicated struct {
 // By default blake2b uses a size of 64, but we will use New256 not New512 so size should be 32
 const blakeSize int = 32
 
-var partialDuplicatedFiles map[[blakeSize]byte]Duplicated = make(map[[blakeSize]byte]Duplicated)
-var DuplicatedFiles map[[blakeSize]byte]Duplicated = make(map[[blakeSize]byte]Duplicated)
+var partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
 
 // compareFile checks if the hash of the "path" file are in the map, in that case, append it to the listDuplicated
 // otherwise creates a new Duplicated for storing future duplicates of the current file
@@ -39,10 +39,10 @@ func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated
 		val.listDuplicated = append(val.listDuplicated, file)
 		dupMap[hash] = val
 	} else {
-		var file_slice []File
-		file_slice = append(file_slice, file)
+		var fileSlice []File
+		fileSlice = append(fileSlice, file)
 		d := Duplicated{
-			file_slice,
+			fileSlice,
 		}
 
 		dupMap[hash] = d
@@ -58,21 +58,21 @@ func cleanUnmarried(dupMap map[[blakeSize]byte]Duplicated) {
 	}
 }
 
+// ComparePartialFile with one block
 func ComparePartialFile(file File) {
-	//XXX: In theory in Go there are not pass by reference, then why is duplicated_files modified?
+	//XXX: In theory in Go there are not pass by reference, then why is
+	//     duplicated_files modified?
 	compareFile(file, 1, partialDuplicatedFiles)
 }
 
-// Do the full hash of the duplicated_files to avoid false positives
+// ValidateDuplicatedFiles do the full hash of the duplicated_files to
+// avoid false positives
 func ValidateDuplicatedFiles() {
 	cleanUnmarried(partialDuplicatedFiles)
-
 	for _, v := range partialDuplicatedFiles {
 		for _, f := range v.listDuplicated {
 			compareFile(f, 0, DuplicatedFiles)
 		}
 	}
-
 	cleanUnmarried(DuplicatedFiles)
-
 }
