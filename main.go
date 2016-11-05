@@ -39,7 +39,7 @@ type Options struct {
 }
 
 // Init the options to run the program
-func Init() {
+func initOptions() {
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "Enable profiling")
 
 	flag.StringVar(&currentDir, "t", GetUserHome(),
@@ -56,14 +56,14 @@ func Init() {
 }
 
 // Header show the program name and current version
-func Header() {
+func header() {
 	fmt.Println("------------------------")
 	fmt.Printf("%s - version %s\n", name, version)
 	fmt.Println("------------------------")
 }
 
 // ShowDebugInfo print all the current option values
-func ShowDebugInfo() {
+func showDebugInfo() {
 	if showCurrentValues {
 		fmt.Println()
 		fmt.Println("------------------------")
@@ -102,9 +102,9 @@ func executeCPUProfileIfNeeded() {
 }
 
 func main() {
-	Header()
-	Init()
-	ShowDebugInfo()
+	header()
+	initOptions()
+	showDebugInfo()
 
 	options := Options{
 		currentDir,
