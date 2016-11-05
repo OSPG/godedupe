@@ -20,8 +20,10 @@ type Duplicated struct {
 // so size should be 32
 const blakeSize int = 32
 
-var dupFileSize = make(map[int64]Duplicated)
-var partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+var (
+	dupFileSize            = make(map[int64]Duplicated)
+	partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+)
 
 // DuplicatedFiles store all know duplicated files
 var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
