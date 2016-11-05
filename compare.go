@@ -84,8 +84,12 @@ func AddFile(file File) {
 // ValidateDuplicatedFiles do the full hash of the duplicatedFiles to
 // avoid false positives
 func ValidateDuplicatedFiles() {
+	doCompare()
 	cleanUnmarried(partialDuplicatedFiles)
+	obtainDuplicates()
+}
 
+func obtainDuplicates() {
 	var setsDuplicated int
 	for _, v := range partialDuplicatedFiles {
 		setsDuplicated += len(v.listDuplicated)
@@ -108,9 +112,8 @@ func ValidateDuplicatedFiles() {
 	fmt.Printf("\n[+] Stage 3 / 3 completed.\n")
 }
 
-// DoCompare make a partial file comparison
-func DoCompare() {
-	//originalSize := len(dupFileSize)
+// make a partial file comparison
+func doCompare() {
 	for k, v := range dupFileSize {
 		dups := len(v.listDuplicated) - 1
 		if dups == 0 {

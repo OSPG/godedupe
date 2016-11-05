@@ -96,7 +96,6 @@ func Start(options Options) {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
 
-	DoCompare()
 	ValidateDuplicatedFiles()
 
 	reportData := ObtainReportData()
