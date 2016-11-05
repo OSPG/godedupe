@@ -26,7 +26,6 @@ var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
 // case, append it to the listDuplicated otherwise creates a new Duplicated
 // for storing future duplicates of the current file
 func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
-	//fmt.Println(len(dupMap))
 	tmp, err := ComputeHash(file.path, numBlocks)
 	if err != nil {
 		return
