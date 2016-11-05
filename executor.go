@@ -11,7 +11,8 @@ type RoutinePool struct {
 
 // Create the pool
 func Create() *RoutinePool {
-
+	pool := RoutinePool{}
+	return &pool
 }
 
 // Submit to the pool a WorkUnit to be executed

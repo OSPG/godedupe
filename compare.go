@@ -108,6 +108,7 @@ func ValidateDuplicatedFiles() {
 	fmt.Printf("\n[+] Stage 3 / 3 completed.\n")
 }
 
+// DoCompare make a partial file comparison
 func DoCompare() {
 	originalSize := len(dupFileSize)
 	for k, v := range dupFileSize {
