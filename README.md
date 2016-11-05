@@ -29,6 +29,7 @@ Then we hash with the BLAKE algorithm the file that we want to test and check if
 tested to the `listDuplicated` and report that there is a duplicated, if it's false we create a new `Duplicated` and append the
  file we just checked to `listDuplicated`.
 
- ### Image
 
- The images used are from [icons8](https://icons8.com/)
+### Resources
+
+The images used are from [icons8](https://icons8.com/)
