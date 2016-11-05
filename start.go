@@ -7,11 +7,10 @@ import (
 	"strings"
 )
 
-var opt Options
-
 var (
 	countDirs  int
 	countFiles int
+	opt        Options
 )
 
 func update(f os.FileInfo) {
@@ -42,14 +41,10 @@ func checkFile(file File) bool {
 	if !file.info.IsDir() {
 		ComparePartialFile(file)
 	}
-
 	if !opt.quiet {
 		fmt.Printf("[+] Analyzed: %v directories and %v files\r",
 			countDirs, countFiles)
 	}
-
-	//fmt.Println(path)
-
 	return true
 }
 
@@ -59,7 +54,6 @@ func readDir(s string) error {
 	if err != nil {
 		return err
 	}
-
 	if len(files) == 0 {
 		return nil
 	}
