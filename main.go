@@ -91,15 +91,12 @@ func trackTime(now time.Time) {
 	}
 }
 
-func executeCPUProfileIfNeeded() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
-		if err != nil {
-			panic(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
+func executeCPUProfile() {
+	f, err := os.Create(cpuprofile)
+	if err != nil {
+		panic(err)
 	}
+	pprof.StartCPUProfile(f)
 }
 
 func main() {
@@ -117,7 +114,11 @@ func main() {
 		showSummary,
 		quiet,
 	}
-	executeCPUProfileIfNeeded()
+
+	if cpuprofile != "" {
+		executeCPUProfile()
+		defer pprof.StopCPUProfile()
+	}
 
 	defer trackTime(time.Now())
 
