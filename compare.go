@@ -1,8 +1,6 @@
 package main
 
-import (
-	"os"
-)
+import "os"
 
 // File contains the path to the file and her info
 type File struct {

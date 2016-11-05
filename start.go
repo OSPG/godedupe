@@ -77,6 +77,9 @@ func readDir(s string) error {
 // reportDuplicated shows all the information regarding our duplicated files
 // if showSummary is true then a summary will printed too
 func reportDuplicated(showSummary bool) {
+	if opt.quiet {
+		return
+	}
 	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
 	fmt.Printf("-------------------------\n")
 
@@ -112,18 +115,22 @@ func reportDuplicated(showSummary bool) {
 func Start(options Options) {
 	opt = options
 
-	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() {
+	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() && !opt.quiet {
 		fmt.Printf("[-] %s is not a valid directory", info.Name())
 		return
 	}
-	fmt.Println("[+] Starting in directory:", opt.currentDir)
+	if !opt.quiet {
+		fmt.Println("[+] Starting in directory:", opt.currentDir)
+	}
 
 	err := readDir(opt.currentDir)
-	if err != nil {
+	if err != nil && !opt.quiet {
 		fmt.Println("[-]", err)
 	}
 
-	fmt.Printf("\nPartial search done. Deleting false positives\n")
+	if !opt.quiet {
+		fmt.Printf("\nPartial search done. Deleting false positives\n")
+	}
 
 	ValidateDuplicatedFiles()
 

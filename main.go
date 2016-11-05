@@ -41,7 +41,6 @@ type Options struct {
 // Init the options to run the program
 func initOptions() {
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "Enable profiling")
-
 	flag.StringVar(&currentDir, "t", GetUserHome(),
 		"Current directory where the program search for duplicated files")
 	flag.BoolVar(&excludeEmptyFiles, "z", true, "Exclude the zero length files")
@@ -57,14 +56,16 @@ func initOptions() {
 
 // Header show the program name and current version
 func header() {
-	fmt.Println("------------------------")
-	fmt.Printf("%s - version %s\n", name, version)
-	fmt.Println("------------------------")
+	if !quiet {
+		fmt.Println("------------------------")
+		fmt.Printf("%s - version %s\n", name, version)
+		fmt.Println("------------------------")
+	}
 }
 
 // ShowDebugInfo print all the current option values
 func showDebugInfo() {
-	if showCurrentValues {
+	if showCurrentValues && !quiet {
 		fmt.Println()
 		fmt.Println("------------------------")
 		fmt.Println("Current option values")
@@ -102,8 +103,9 @@ func executeCPUProfileIfNeeded() {
 }
 
 func main() {
-	header()
 	initOptions()
+
+	header()
 	showDebugInfo()
 
 	options := Options{
