@@ -13,14 +13,18 @@ type Duplicated struct {
 	listDuplicated []File
 }
 
-// By default blake2b uses a size of 64, but we will use New256 not New512 so size should be 32
+// By default blake2b uses a size of 64, but we will use New256 not New512
+// so size should be 32
 const blakeSize int = 32
 
 var partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+
+// DuplicatedFiles store all know duplicated files
 var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
 
-// compareFile checks if the hash of the "path" file are in the map, in that case, append it to the listDuplicated
-// otherwise creates a new Duplicated for storing future duplicates of the current file
+// compareFile checks if the hash of the "path" file are in the map, in that
+// case, append it to the listDuplicated otherwise creates a new Duplicated
+// for storing future duplicates of the current file
 func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
 	//fmt.Println(len(dupMap))
 	tmp, err := ComputeHash(file.path, numBlocks)
