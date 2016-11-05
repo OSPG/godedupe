@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 // File contains the path to the file and her info
 type File struct {
@@ -17,6 +20,7 @@ type Duplicated struct {
 // so size should be 32
 const blakeSize int = 32
 
+var dupFileSize = make(map[int64]Duplicated)
 var partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
 
 // DuplicatedFiles store all know duplicated files
@@ -61,20 +65,71 @@ func cleanUnmarried(dupMap map[[blakeSize]byte]Duplicated) {
 }
 
 // ComparePartialFile with one block
-func ComparePartialFile(file File) {
+func comparePartialFile(file File) {
 	//XXX: In theory in Go there are not pass by reference, then why is
 	//     duplicated_files modified?
 	compareFile(file, 1, partialDuplicatedFiles)
 }
 
-// ValidateDuplicatedFiles do the full hash of the duplicated_files to
+// AddFile append files to the dupFileSize map to be compared later
+func AddFile(file File) {
+	size := file.info.Size()
+	if val, ok := dupFileSize[size]; ok {
+		val.listDuplicated = append(val.listDuplicated, file)
+		dupFileSize[size] = val
+	} else {
+		var fileSlice []File
+		fileSlice = append(fileSlice, file)
+		d := Duplicated{
+			fileSlice,
+		}
+		dupFileSize[size] = d
+	}
+}
+
+// ValidateDuplicatedFiles do the full hash of the duplicatedFiles to
 // avoid false positives
 func ValidateDuplicatedFiles() {
 	cleanUnmarried(partialDuplicatedFiles)
+
+	fmt.Printf("[+] From %d files, %d need to be rechecked.\n", len(dupFileSize), len(partialDuplicatedFiles))
+	fmt.Printf("[+] Starting stage 3 / 3.\n")
+
+	i := 0
 	for _, v := range partialDuplicatedFiles {
 		for _, f := range v.listDuplicated {
 			compareFile(f, 0, DuplicatedFiles)
 		}
+		i++
+		fmt.Printf("[+] %d / %d done\r",
+			i, len(partialDuplicatedFiles))
 	}
 	cleanUnmarried(DuplicatedFiles)
+
+	fmt.Printf("\n[+] Stage 3 / 3 completed.\n")
+}
+
+func DoCompare() {
+	originalSize := len(dupFileSize)
+	for k, v := range dupFileSize {
+		dups := len(v.listDuplicated) - 1
+		if dups == 0 {
+			delete(dupFileSize, k)
+		}
+	}
+
+	fmt.Printf("[+] From %d files, %d need to be rechecked.\n", originalSize, len(dupFileSize))
+	fmt.Printf("[+] Starting stage 2 / 3.\n")
+
+	i := 0
+	for _, v := range dupFileSize {
+		for _, f := range v.listDuplicated {
+			comparePartialFile(f)
+		}
+		i++
+		fmt.Printf("[+] %d / %d done\r",
+			i, len(dupFileSize))
+	}
+
+	fmt.Printf("\n[+] Stage 2 done.\n")
 }
