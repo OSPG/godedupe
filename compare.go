@@ -63,13 +63,6 @@ func cleanUnmarried(dupMap map[[blakeSize]byte]Duplicated) {
 	}
 }
 
-// ComparePartialFile with one block
-func comparePartialFile(file File) {
-	//XXX: In theory in Go there are not pass by reference, then why is
-	//     duplicated_files modified?
-	compareFile(file, 1, partialDuplicatedFiles)
-}
-
 // AddFile append files to the dupFileSize map to be compared later
 func AddFile(file File) {
 	size := file.info.Size()
@@ -133,7 +126,7 @@ func DoCompare() {
 	i := 0
 	for _, v := range dupFileSize {
 		for _, f := range v.listDuplicated {
-			comparePartialFile(f)
+			compareFile(f, 1, partialDuplicatedFiles)
 		}
 		i++
 		fmt.Printf("[+] %d / %d done\r",
