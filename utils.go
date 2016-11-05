@@ -22,7 +22,8 @@ func GetUserHome() string {
 const bufferSize = 2 * 1024
 
 // ComputeHash calculates the hash for the current file
-// if bufferNumber is not zero then we will only hash the first bufferNumber blocks (bufferSize)
+// if bufferNumber is not zero then we will only hash the first bufferNumber
+// blocks (bufferSize)
 func ComputeHash(filename string, bufNumber int) ([]byte, error) {
 	file, err := os.Open(filename)
 	if err != nil {
