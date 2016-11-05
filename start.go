@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -97,5 +98,25 @@ func Start(options Options) {
 
 	ValidateDuplicatedFiles()
 
-	ReportDuplicated(opt.showSummary)
+	reportData := ObtainReportData()
+	reportData.ReportDuplicated(opt.showSummary)
+
+	file, err := os.Open("icon/success.png")
+	if err != nil {
+		if !opt.quiet {
+			fmt.Println("[-]", err)
+		}
+		return
+	}
+	absDir, err := filepath.Abs(file.Name())
+	if err != nil {
+		if !opt.quiet {
+			fmt.Println("[-]", err)
+		}
+		return
+	}
+	summary := fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes",
+		reportData.duplicates, reportData.sets, reportData.totalSize)
+	notification := Notification{"godedupe finish", summary, absDir}
+	notification.ShowNotification(opt.showNotification)
 }

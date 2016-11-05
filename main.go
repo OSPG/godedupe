@@ -24,6 +24,7 @@ var (
 	ignoreSymLinks     bool
 	showSummary        bool
 	quiet              bool
+	showNotification   bool
 )
 
 // Options for start the program
@@ -35,6 +36,7 @@ type Options struct {
 	ignoreSymLinks     bool
 	showSummary        bool
 	quiet              bool
+	showNotification   bool
 }
 
 // Init the options to run the program
@@ -50,6 +52,8 @@ func initOptions() {
 	flag.BoolVar(&ignoreSymLinks, "sym", true, "Ignore symlinks")
 	flag.BoolVar(&showSummary, "m", false, "Show a summary")
 	flag.BoolVar(&quiet, "q", false, "Don't show status info")
+	flag.BoolVar(&showNotification, "show-notification", false,
+		"Show a desktop notification when the program finish")
 	flag.Parse()
 }
 
@@ -112,6 +116,7 @@ func main() {
 		ignoreSymLinks,
 		showSummary,
 		quiet,
+		showNotification,
 	}
 
 	if cpuprofile != "" {
