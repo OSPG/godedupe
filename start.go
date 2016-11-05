@@ -60,7 +60,7 @@ func readDir(s string) error {
 	}
 
 	for _, f := range files {
-		path := s + "/" + f.Name()
+		path := s + string(filepath.Separator) + f.Name()
 		file := File{
 			path,
 			f,
