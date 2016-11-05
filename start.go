@@ -92,18 +92,19 @@ func reportDuplicated(showSummary bool) {
 	fmt.Println()
 
 	if showSummary {
-		num_dup := 0
+		numDup := 0
 		sets := 0
-		total_size := int64(0)
+		totalSize := int64(0)
 		for _, v := range DuplicatedFiles {
 			dups := len(v.list_duplicated) - 1
-			num_dup += dups
+			numDup += dups
 			sets += 1
 			for _, f := range v.list_duplicated[1:] {
-				total_size += f.info.Size()
+				totalSize += f.info.Size()
 			}
 		}
-		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes", num_dup, sets, total_size)
+		fmt.Printf("%d duplicated files (in %d sets), occupying %d bytes",
+			numDup, sets, totalSize)
 	}
 }
 
