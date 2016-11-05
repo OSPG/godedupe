@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"time"
 )
 
 const (
@@ -82,6 +83,13 @@ func ShowDebugInfo() {
 	}
 }
 
+func trackTime(now time.Time) {
+	expired := time.Since(now)
+	if !quiet {
+		fmt.Printf("Program terminated in %v\n", expired)
+	}
+}
+
 func main() {
 	Header()
 	Init()
@@ -105,6 +113,8 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	defer trackTime(time.Now())
 
 	Start(options)
 }
