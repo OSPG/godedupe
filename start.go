@@ -82,7 +82,7 @@ func reportDuplicated(showSummary bool) {
 
 	for k, v := range DuplicatedFiles {
 		fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
-		for _, f := range v.list_duplicated {
+		for _, f := range v.listDuplicated {
 			fmt.Println(f.path)
 		}
 		fmt.Printf("-------------------------\n")
@@ -96,10 +96,10 @@ func reportDuplicated(showSummary bool) {
 		sets := 0
 		totalSize := int64(0)
 		for _, v := range DuplicatedFiles {
-			dups := len(v.list_duplicated) - 1
+			dups := len(v.listDuplicated) - 1
 			numDup += dups
-			sets += 1
-			for _, f := range v.list_duplicated[1:] {
+			sets++
+			for _, f := range v.listDuplicated[1:] {
 				totalSize += f.info.Size()
 			}
 		}
