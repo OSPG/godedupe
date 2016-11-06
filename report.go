@@ -34,19 +34,19 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 	if opt.quiet {
 		return
 	}
-	//fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
-	//fmt.Printf("-------------------------\n")
+	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
+	fmt.Printf("-------------------------\n")
 
-	//for k, v := range DuplicatedFiles {
-	//	fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
-	//	for _, f := range v.listDuplicated {
-	//		fmt.Println(f.path)
-	//	}
-	//	fmt.Printf("-------------------------\n")
-	//}
+	for k, v := range DuplicatedFiles {
+		fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
+		for _, f := range v.listDuplicated {
+			fmt.Println(f.path)
+		}
+		fmt.Printf("-------------------------\n")
+	}
 
-	//fmt.Println("END OF LIST")
-	//fmt.Println()
+	fmt.Println("END OF LIST")
+	fmt.Println()
 
 	fmt.Printf("[+] %d duplicated files (in %d sets), occupying %v\n",
 		report.duplicates, report.sets, ConvertBytes(report.totalSize))
