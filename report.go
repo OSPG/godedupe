@@ -48,6 +48,6 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 	//fmt.Println("END OF LIST")
 	//fmt.Println()
 
-	fmt.Printf("[+] %d duplicated files (in %d sets), occupying %v bytes\n",
+	fmt.Printf("[+] %d duplicated files (in %d sets), occupying %v\n",
 		report.duplicates, report.sets, ConvertBytes(report.totalSize))
 }

@@ -68,9 +68,9 @@ func ConvertBytes(bytes int64) string {
 	if bytes < 1024 {
 		return fmt.Sprintf("%v bytes", bytes)
 	} else if bytes > 1024 && bytes < 1048576 {
-		return fmt.Sprintf("%.2f Kb", float32(bytes)/float32(1024))
+		return fmt.Sprintf("%.2f KB", float32(bytes)/float32(1024))
 	} else if bytes > 1048576 && bytes < 1073741824 {
-		return fmt.Sprintf("%.2f Mb", float32(bytes)/float32(1048576))
+		return fmt.Sprintf("%.2f MB", float32(bytes)/float32(1048576))
 	}
-	return fmt.Sprintf("%.2f Gb", float32(bytes)/float32(1073741824))
+	return fmt.Sprintf("%.2f GB", float32(bytes)/float32(1073741824))
 }
