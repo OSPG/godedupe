@@ -91,17 +91,24 @@ func AddFile(file File) {
 // avoid false positives
 func ValidateDuplicatedFiles() {
 	doCompare()
-	cleanUnmarried(partialDuplicatedFiles)
 	obtainDuplicates()
 }
 
 func obtainDuplicates() {
-	var setsDuplicated int
+	filesBefore := 0
 	for _, v := range partialDuplicatedFiles {
-		setsDuplicated += len(v.listDuplicated)
+		filesBefore += len(v.listDuplicated)
 	}
-	fmt.Printf("[+] From %d sets, %d need to be rechecked\n",
-		setsDuplicated, len(partialDuplicatedFiles))
+
+	cleanUnmarried(partialDuplicatedFiles)
+
+	filesAfter := 0
+	for _, v := range partialDuplicatedFiles {
+		filesAfter += len(v.listDuplicated)
+	}
+
+	fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
+		filesBefore, filesAfter, len(partialDuplicatedFiles))
 	fmt.Printf("[+] Starting stage 3 / 3.\n")
 
 	i := 0
@@ -120,18 +127,25 @@ func obtainDuplicates() {
 
 // make a partial file comparison
 func doCompare() {
+	filesBefore := 0
+	for _, v := range dupFileSize {
+		filesBefore += len(v.listDuplicated)
+	}
+
 	for k, v := range dupFileSize {
 		dups := len(v.listDuplicated) - 1
 		if dups == 0 {
 			delete(dupFileSize, k)
 		}
 	}
-	var setsDuplicated int
+
+	filesAfter := 0
 	for _, v := range dupFileSize {
-		setsDuplicated += len(v.listDuplicated)
+		filesAfter += len(v.listDuplicated)
 	}
-	fmt.Printf("[+] From %d sets, %d need to be rechecked.\n",
-		setsDuplicated, len(dupFileSize))
+
+	fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
+		filesBefore, filesAfter, len(dupFileSize))
 	fmt.Printf("[+] Starting stage 2 / 3.\n")
 
 	i := 0
