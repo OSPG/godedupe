@@ -116,7 +116,7 @@ func Start(options Options) {
 		return
 	}
 	summary := fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes",
-		reportData.duplicates, reportData.sets, reportData.totalSize)
+		reportData.duplicates, reportData.sets, ConvertBytes(reportData.totalSize))
 	notification := Notification{"godedupe finish", summary, absDir}
 	notification.ShowNotification(opt.showNotification)
 }
