@@ -23,6 +23,7 @@ const blakeSize int = 32
 var (
 	dupFileSize            = make(map[int64]Duplicated)
 	partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+	hashChannel            = make(chan [blakeSize]byte)
 )
 
 // DuplicatedFiles store all know duplicated files
@@ -32,19 +33,24 @@ var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
 // case, append it to the listDuplicated otherwise creates a new Duplicated
 // for storing future duplicates of the current file
 func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
-	tmp, err := ComputeHash(file.path, numBlocks)
-	if err != nil {
-		return
-	}
+	go func(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
+		tmp, err := ComputeHash(file.path, numBlocks)
+		if err != nil {
+			return
+		}
+		var hash [blakeSize]byte
+		copy(hash[:], tmp)
+		hashChannel <- hash
+
+	}(file, numBlocks, dupMap)
 
 	//Convert from slice to array
-	var hash [blakeSize]byte
-	copy(hash[:], tmp)
+	result := <-hashChannel
 
 	//Check if exist a duplicated of the current file
-	if val, ok := dupMap[hash]; ok {
+	if val, ok := dupMap[result]; ok {
 		val.listDuplicated = append(val.listDuplicated, file)
-		dupMap[hash] = val
+		dupMap[result] = val
 	} else {
 		var fileSlice []File
 		fileSlice = append(fileSlice, file)
@@ -52,7 +58,7 @@ func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated
 			fileSlice,
 		}
 
-		dupMap[hash] = d
+		dupMap[result] = d
 	}
 }
 

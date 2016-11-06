@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"time"
 )
@@ -126,5 +127,6 @@ func main() {
 
 	defer trackTime(time.Now())
 
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	Start(options)
 }
