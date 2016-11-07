@@ -52,7 +52,7 @@ func initOptions() {
 	flag.BoolVar(&enableRecursion, "r", true, "Follow subdirectories (recursion)")
 	flag.BoolVar(&ignoreSymLinks, "sym", true, "Ignore symlinks")
 	flag.BoolVar(&showSummary, "m", false, "Show a summary")
-	flag.BoolVar(&quiet, "q", false, "Don't show status info")
+	flag.BoolVar(&quiet, "q", false, "Don't show progress info")
 	flag.BoolVar(&showNotification, "show-notification", false,
 		"Show a desktop notification when the program finish")
 	flag.Parse()

@@ -107,22 +107,28 @@ func obtainDuplicates() {
 		filesAfter += len(v.listDuplicated)
 	}
 
-	fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
-		filesBefore, filesAfter, len(partialDuplicatedFiles))
-	fmt.Printf("[+] Starting stage 3 / 3.\n")
+	if !opt.quiet {
+		fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
+			filesBefore, filesAfter, len(partialDuplicatedFiles))
+		fmt.Printf("[+] Starting stage 3 / 3.\n")
+	}
 
 	i := 0
 	for _, v := range partialDuplicatedFiles {
 		for _, f := range v.listDuplicated {
 			compareFile(f, 0, DuplicatedFiles)
 		}
-		i++
-		fmt.Printf("[+] %d / %d done\r",
-			i, len(partialDuplicatedFiles))
+		if !opt.quiet {
+			i++
+			fmt.Printf("[+] %d / %d done\r",
+				i, len(partialDuplicatedFiles))
+		}
 	}
 	cleanUnmarried(DuplicatedFiles)
 
-	fmt.Printf("\n[+] Stage 3 / 3 completed.\n")
+	if !opt.quiet {
+		fmt.Printf("[+] Stage 3 / 3 completed.\n\n")
+	}
 }
 
 // make a partial file comparison
@@ -143,20 +149,24 @@ func doCompare() {
 	for _, v := range dupFileSize {
 		filesAfter += len(v.listDuplicated)
 	}
-
-	fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
-		filesBefore, filesAfter, len(dupFileSize))
-	fmt.Printf("[+] Starting stage 2 / 3.\n")
+	if !opt.quiet {
+		fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
+			filesBefore, filesAfter, len(dupFileSize))
+		fmt.Printf("[+] Starting stage 2 / 3.\n")
+	}
 
 	i := 0
 	for _, v := range dupFileSize {
 		for _, f := range v.listDuplicated {
 			compareFile(f, 1, partialDuplicatedFiles)
 		}
-		i++
-		fmt.Printf("[+] %d / %d done\r",
-			i, len(dupFileSize))
+		if !opt.quiet {
+			i++
+			fmt.Printf("[+] %d / %d done\r",
+				i, len(dupFileSize))
+		}
 	}
-
-	fmt.Printf("\n[+] Stage 2 done.\n")
+	if !opt.quiet {
+		fmt.Printf("\n[+] Stage 2 / 3 completed.\n")
+	}
 }

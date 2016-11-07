@@ -31,10 +31,7 @@ func ObtainReportData() ReportData {
 // ReportDuplicated shows all the information regarding our duplicated files
 // if showSummary is true then a summary will printed too
 func (report *ReportData) ReportDuplicated(showSummary bool) {
-	if opt.quiet {
-		return
-	}
-	fmt.Printf("\n\nLISTING DUPLICATED FILES\n")
+	fmt.Printf("LISTING DUPLICATED FILES\n")
 	fmt.Printf("-------------------------\n")
 
 	for k, v := range DuplicatedFiles {
