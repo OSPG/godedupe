@@ -60,6 +60,13 @@ func readDir(s string) error {
 	}
 
 	for _, f := range files {
+		if f.Name() == ".godedupe_ignore" {
+			return nil
+		}
+	}
+
+	for _, f := range files {
+
 		path := s + string(filepath.Separator) + f.Name()
 		file := File{
 			path,
