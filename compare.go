@@ -16,41 +16,27 @@ type Duplicated struct {
 	listDuplicated []File
 }
 
-// By default blake2b uses a size of 64, but we will use New256 not New512
-// so size should be 32
-const blakeSize int = 32
-
 var (
 	dupFileSize            = make(map[int64]Duplicated)
-	partialDuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
-	hashChannel            = make(chan [blakeSize]byte)
+	partialDuplicatedFiles = make(map[uint64]Duplicated)
 )
 
 // DuplicatedFiles store all know duplicated files
-var DuplicatedFiles = make(map[[blakeSize]byte]Duplicated)
+var DuplicatedFiles = make(map[uint64]Duplicated)
 
 // compareFile checks if the hash of the "path" file are in the map, in that
 // case, append it to the listDuplicated otherwise creates a new Duplicated
 // for storing future duplicates of the current file
-func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
-	go func(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated) {
-		tmp, err := ComputeHash(file.path, numBlocks)
-		if err != nil {
-			return
-		}
-		var hash [blakeSize]byte
-		copy(hash[:], tmp)
-		hashChannel <- hash
-
-	}(file, numBlocks, dupMap)
-
-	//Convert from slice to array
-	result := <-hashChannel
+func compareFile(file File, numBlocks int, dupMap map[uint64]Duplicated) {
+	hash, err := ComputeHash(file.path, numBlocks)
+	if err != nil {
+		return
+	}
 
 	//Check if exist a duplicated of the current file
-	if val, ok := dupMap[result]; ok {
+	if val, ok := dupMap[hash]; ok {
 		val.listDuplicated = append(val.listDuplicated, file)
-		dupMap[result] = val
+		dupMap[hash] = val
 	} else {
 		var fileSlice []File
 		fileSlice = append(fileSlice, file)
@@ -58,11 +44,11 @@ func compareFile(file File, numBlocks int, dupMap map[[blakeSize]byte]Duplicated
 			fileSlice,
 		}
 
-		dupMap[result] = d
+		dupMap[hash] = d
 	}
 }
 
-func cleanUnmarried(dupMap map[[blakeSize]byte]Duplicated) {
+func cleanUnmarried(dupMap map[uint64]Duplicated) {
 	for k, v := range dupMap {
 		dups := len(v.listDuplicated) - 1
 		if dups == 0 {
@@ -94,6 +80,7 @@ func ValidateDuplicatedFiles() {
 	obtainDuplicates()
 }
 
+// make the full file comparison
 func obtainDuplicates() {
 	filesBefore := 0
 	for _, v := range partialDuplicatedFiles {

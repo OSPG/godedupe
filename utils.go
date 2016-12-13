@@ -7,10 +7,10 @@ import (
 	"os"
 	"os/user"
 
-	blake "github.com/minio/blake2b-simd"
+	"hash/crc64"
 )
 
-const bufferSize = 2 * 1024
+const bufferSize = 1024
 
 // GetUserHome obtain the current home directory of the user
 func GetUserHome() string {
@@ -25,14 +25,14 @@ func GetUserHome() string {
 // ComputeHash calculates the hash for the current file
 // if bufferNumber is not zero then we will only hash the first bufferNumber
 // blocks (bufferSize)
-func ComputeHash(filename string, bufNumber int) ([]byte, error) {
+func ComputeHash(filename string, bufNumber int) (uint64, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer file.Close()
 
-	hash := blake.New256()
+	hash := crc64.New(crc64.MakeTable(crc64.ECMA))
 	buf, reader := make([]byte, bufferSize), bufio.NewReader(file)
 	if bufNumber <= 0 {
 		for {
@@ -41,10 +41,10 @@ func ComputeHash(filename string, bufNumber int) ([]byte, error) {
 				if err == io.EOF {
 					break
 				}
-				return nil, err
+				return 0, err
 			}
 
-			hash.Write(buf[:n])
+			hash.Write(buf[:n])	
 		}
 	} else {
 		for ; bufNumber > 0; bufNumber-- {
@@ -53,14 +53,14 @@ func ComputeHash(filename string, bufNumber int) ([]byte, error) {
 				if err == io.EOF {
 					break
 				}
-				return nil, err
+				return 0, err
 			}
 
 			hash.Write(buf[:n])
 		}
 	}
 
-	return hash.Sum(nil), nil
+	return hash.Sum64(), nil
 }
 
 // ConvertBytes to convenient convert bytes to other units
