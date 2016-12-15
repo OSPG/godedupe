@@ -8,7 +8,7 @@ The version 1.1.0 is our second version. In this version the only supported OS w
 but (at least) it is able to find duplicate files like fdupes does.
 
 With the release of version 2.0.0 its planned to be able to find files which are almost identical. Useful for example when one file
-is a modern version of other file, in this case the BLAKE sum will not be the same, but our program should be able to identify it.
+is a modern version of other file.
 
 ### Version naming
 
@@ -30,7 +30,7 @@ Then first we create the first map using as the key the size of each file. Then 
 Then, for the keys that still have multiple values, a partial hash is done and saved to another map using the hash as the key. From that map, the keys that don't have multiple values are deleted.
 Finally, for all the values that are left we do the full hash of the file and add to another map. We delete the keys that have only one value, and then we report all the files that are left.
 
-For the hash we use [BLAKE](https://github.com/minio/blake2b-simd) algorithm.
+For the hash we use a crc64
 
 
 ### Resources
