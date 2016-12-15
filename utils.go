@@ -44,7 +44,7 @@ func ComputeHash(filename string, bufNumber int) (uint64, error) {
 				return 0, err
 			}
 
-			hash.Write(buf[:n])	
+			hash.Write(buf[:n])
 		}
 	} else {
 		for ; bufNumber > 0; bufNumber-- {
