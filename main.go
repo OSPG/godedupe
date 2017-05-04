@@ -26,7 +26,7 @@ var (
 	showSummary        bool
 	quiet              bool
 	showNotification   bool
-	fileExt		   string
+	fileExt            string
 )
 
 // Options for start the program
@@ -39,7 +39,7 @@ type Options struct {
 	showSummary        bool
 	quiet              bool
 	showNotification   bool
-	fileExt		   string
+	fileExt            string
 }
 
 // Init the options to run the program
