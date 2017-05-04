@@ -42,6 +42,7 @@ type Options struct {
 
 // Init the options to run the program
 func initOptions() {
+	fmt.Println()
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "Enable profiling")
 	flag.StringVar(&currentDir, "t", GetUserHome(),
 		"Current directory where the program search for duplicated files")
@@ -104,9 +105,10 @@ func executeCPUProfile() {
 }
 
 func main() {
+	header()
+
 	initOptions()
 
-	header()
 	showDebugInfo()
 
 	options := Options{
