@@ -25,20 +25,27 @@ func update(f os.FileInfo) {
 // checkFile checks if we have to add this file.
 // Returns true if we have to recurse or false if we don't
 func checkFile(file File) bool {
-	if opt.excludeEmptyFiles && !file.info.IsDir() && file.info.Size() == 0 {
+	// Only scan for files of a given format
+	if  !file.info.IsDir() && opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
 		return false
 	}
+
+	if opt.excludeEmptyFiles && file.info.Size() == 0 {
+		return false
+	}
+
 	if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
 		// hidden file or directory
 		return false
 	}
+
 	if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
 		return false
 	}
 
 	update(file.info)
 
-	// only make hash for files, skip dirs
+	// only make hash for files
 	if !file.info.IsDir() {
 		AddFile(file)
 	}

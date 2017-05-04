@@ -26,6 +26,7 @@ var (
 	showSummary        bool
 	quiet              bool
 	showNotification   bool
+	fileExt		   string
 )
 
 // Options for start the program
@@ -38,6 +39,7 @@ type Options struct {
 	showSummary        bool
 	quiet              bool
 	showNotification   bool
+	fileExt		   string
 }
 
 // Init the options to run the program
@@ -56,6 +58,7 @@ func initOptions() {
 	flag.BoolVar(&quiet, "q", false, "Don't show progress info")
 	flag.BoolVar(&showNotification, "show-notification", false,
 		"Show a desktop notification when the program finish")
+	flag.StringVar(&fileExt, "ext", "", "Only find duplicates for the given extension")
 	flag.Parse()
 }
 
@@ -82,6 +85,7 @@ func showDebugInfo() {
 		fmt.Println("Recursive search          :", enableRecursion)
 		fmt.Println("Show a summary            :", showSummary)
 		fmt.Println("Quiet                     :", quiet)
+		fmt.Println("File extension            :", fileExt)
 		if cpuprofile != "" {
 			fmt.Println("Profile output            :", cpuprofile)
 		}
@@ -120,6 +124,7 @@ func main() {
 		showSummary,
 		quiet,
 		showNotification,
+		fileExt,
 	}
 
 	if cpuprofile != "" {
