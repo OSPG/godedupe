@@ -11,7 +11,7 @@ import (
 
 const (
 	name    string = "godedupe"
-	version string = "1.1.1"
+	version string = "1.2.1"
 )
 
 var (
