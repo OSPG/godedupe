@@ -27,6 +27,7 @@ var (
 	quiet              bool
 	showNotification   bool
 	fileExt            string
+	maxDepth           int
 )
 
 // Options for start the program
@@ -40,6 +41,7 @@ type Options struct {
 	quiet              bool
 	showNotification   bool
 	fileExt            string
+	maxDepth           int
 }
 
 // Init the options to run the program
@@ -59,6 +61,7 @@ func initOptions() {
 	flag.BoolVar(&showNotification, "show-notification", false,
 		"Show a desktop notification when the program finish")
 	flag.StringVar(&fileExt, "ext", "", "Only find duplicates for the given extension")
+	flag.IntVar(&maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
 	flag.Parse()
 }
 
@@ -86,6 +89,7 @@ func showDebugInfo() {
 		fmt.Println("Show a summary            :", showSummary)
 		fmt.Println("Quiet                     :", quiet)
 		fmt.Println("File extension            :", fileExt)
+		fmt.Println("Max depth                 :", maxDepth)
 		if cpuprofile != "" {
 			fmt.Println("Profile output            :", cpuprofile)
 		}
@@ -125,6 +129,7 @@ func main() {
 		quiet,
 		showNotification,
 		fileExt,
+		maxDepth,
 	}
 
 	if cpuprofile != "" {

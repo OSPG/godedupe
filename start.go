@@ -57,7 +57,9 @@ func checkFile(file File) bool {
 }
 
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
-func readDir(s string) error {
+func readDir(s string, depth int) error {
+	depth++
+
 	files, err := ioutil.ReadDir(s)
 	if err != nil {
 		return err
@@ -80,10 +82,25 @@ func readDir(s string) error {
 			f,
 		}
 
-		recurse := checkFile(file)
+		update(file.info)
 
-		if opt.enableRecursion && recurse && file.info.IsDir() {
-			readDir(path)
+		if !opt.quiet {
+			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
+		}
+
+		if !file.info.IsDir() {
+			// Only scan for files of a given extension
+			if opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
+			} else if opt.excludeEmptyFiles && file.info.Size() == 0 {
+			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
+			} else if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
+			} else {
+				AddFile(file)
+			}
+		} else if opt.enableRecursion {
+			if depth < opt.maxDepth || opt.maxDepth == -1 {
+				readDir(path, depth)
+			}
 		}
 	}
 	return nil
@@ -101,7 +118,7 @@ func Start(options Options) {
 		fmt.Println("[+] Starting in directory:", opt.currentDir)
 	}
 
-	err := readDir(opt.currentDir)
+	err := readDir(opt.currentDir, 0)
 	if err != nil && !opt.quiet {
 		fmt.Println("[-]", err)
 	}
