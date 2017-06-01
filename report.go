@@ -62,7 +62,8 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 func (report *ReportData) ExportDuplicate(dst_file string) {
 	f, err := os.OpenFile(dst_file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	defer f.Close()
@@ -76,11 +77,12 @@ func (report *ReportData) ExportDuplicate(dst_file string) {
 		json_data := &JsonExport{Hash: k, Paths: paths}
 		json, err := json.MarshalIndent(json_data, "", "\t")
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
 		}
 
 		if _, err = f.Write(json); err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 	}
 }

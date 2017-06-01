@@ -136,26 +136,13 @@ func Start(options Options) {
 
 	reportData := ObtainReportData()
 	reportData.ReportDuplicated(opt.showSummary)
-	if jsonFile != "" {
-		reportData.ExportDuplicate(jsonFile)
+	if options.jsonFile != "" {
+		reportData.ExportDuplicate(options.jsonFile)
 	}
 
-	file, err := os.Open("icon/success.png")
-	if err != nil {
-		if !opt.quiet {
-			fmt.Println("[-]", err)
-		}
-		return
-	}
-	absDir, err := filepath.Abs(file.Name())
-	if err != nil {
-		if !opt.quiet {
-			fmt.Println("[-]", err)
-		}
-		return
-	}
 	summary := fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",
 		reportData.duplicates, reportData.sets, ConvertBytes(reportData.totalSize))
-	notification := Notification{"godedupe finish", summary, absDir}
-	notification.ShowNotification(opt.showNotification)
+	if opt.showNotification {
+		ShowNotification("godedupe finish", summary)
+	}
 }
