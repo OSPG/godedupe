@@ -135,7 +135,12 @@ func Start(options Options) {
 	ValidateDuplicatedFiles()
 
 	reportData := ObtainReportData()
-	reportData.ReportDuplicated(opt.showSummary)
+	if options.sameLine {
+		reportData.ReportSameLine()
+	} else {
+		reportData.ReportDuplicated(opt.showSummary)
+	}
+
 	if options.jsonFile != "" {
 		reportData.ExportDuplicate(options.jsonFile)
 	}

@@ -58,6 +58,16 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 	}
 }
 
+func (report *ReportData) ReportSameLine() {
+	for k, v := range DuplicatedFiles {
+		fmt.Printf("%x", k)
+		for _, f := range v.listDuplicated {
+			fmt.Printf(" %s", f.path)
+		}
+		fmt.Println()
+	}
+}
+
 // ExportDuplicate exports the list of duplicated files to the given file
 func (report *ReportData) ExportDuplicate(dst_file string) {
 	f, err := os.OpenFile(dst_file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
