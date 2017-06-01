@@ -28,6 +28,7 @@ var (
 	showNotification   bool
 	fileExt            string
 	maxDepth           int
+	jsonFile           string
 )
 
 // Options for start the program
@@ -42,6 +43,7 @@ type Options struct {
 	showNotification   bool
 	fileExt            string
 	maxDepth           int
+	jsonFile           string
 }
 
 // Init the options to run the program
@@ -62,6 +64,7 @@ func initOptions() {
 		"Show a desktop notification when the program finish")
 	flag.StringVar(&fileExt, "ext", "", "Only find duplicates for the given extension")
 	flag.IntVar(&maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
+	flag.StringVar(&jsonFile, "json", "", "Export the list of duplicated files to the given json file")
 	flag.Parse()
 }
 
@@ -90,9 +93,8 @@ func showDebugInfo() {
 		fmt.Println("Quiet                     :", quiet)
 		fmt.Println("File extension            :", fileExt)
 		fmt.Println("Max depth                 :", maxDepth)
-		if cpuprofile != "" {
-			fmt.Println("Profile output            :", cpuprofile)
-		}
+		fmt.Println("Json file                 :", jsonFile)
+		fmt.Println("Profile output            :", cpuprofile)
 		fmt.Println("------------------------")
 	}
 }
@@ -130,6 +132,7 @@ func main() {
 		showNotification,
 		fileExt,
 		maxDepth,
+		jsonFile,
 	}
 
 	if cpuprofile != "" {

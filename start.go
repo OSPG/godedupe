@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var (
@@ -13,6 +14,8 @@ var (
 	countFiles int
 	opt        Options
 )
+
+var mutx sync.Mutex
 
 func update(f os.FileInfo) {
 	if f.IsDir() {
@@ -95,7 +98,9 @@ func readDir(s string, depth int) error {
 			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
 			} else if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
 			} else {
+				mutx.Lock()
 				AddFile(file)
+				mutx.Unlock()
 			}
 		} else if opt.enableRecursion {
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
@@ -131,6 +136,9 @@ func Start(options Options) {
 
 	reportData := ObtainReportData()
 	reportData.ReportDuplicated(opt.showSummary)
+	if jsonFile != "" {
+		reportData.ExportDuplicate(jsonFile)
+	}
 
 	file, err := os.Open("icon/success.png")
 	if err != nil {

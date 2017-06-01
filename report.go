@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 )
 
 // ReportData contains the basic data to generate a basic report
@@ -9,6 +11,11 @@ type ReportData struct {
 	duplicates int64
 	sets       int
 	totalSize  int64
+}
+
+type JsonExport struct {
+	Hash  uint64
+	Paths []string
 }
 
 // ObtainReportData for this session
@@ -48,5 +55,32 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 	if showSummary {
 		fmt.Printf("[+] %d duplicated files (in %d sets), occupying %v\n",
 			report.duplicates, report.sets, ConvertBytes(report.totalSize))
+	}
+}
+
+// ExportDuplicate exports the list of duplicated files to the given file
+func (report *ReportData) ExportDuplicate(dst_file string) {
+	f, err := os.OpenFile(dst_file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	for k, v := range DuplicatedFiles {
+		var paths []string
+		for _, f := range v.listDuplicated {
+			paths = append(paths, f.path)
+		}
+
+		json_data := &JsonExport{Hash: k, Paths: paths}
+		json, err := json.MarshalIndent(json_data, "", "\t")
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err = f.Write(json); err != nil {
+			panic(err)
+		}
 	}
 }
