@@ -25,40 +25,6 @@ func update(f os.FileInfo) {
 	}
 }
 
-// checkFile checks if we have to add this file.
-// Returns true if we have to recurse or false if we don't
-func checkFile(file File) bool {
-	update(file.info)
-
-	// Only scan for files of a given format
-	if !file.info.IsDir() && opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
-		return false
-	}
-
-	if opt.excludeEmptyFiles && file.info.Size() == 0 {
-		return false
-	}
-
-	if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
-		// hidden file or directory
-		return false
-	}
-
-	if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
-		return false
-	}
-
-	// only make hash for files
-	if !file.info.IsDir() {
-		AddFile(file)
-	}
-	if !opt.quiet {
-		fmt.Printf("[+] Analyzed: %v directories and %v files\r",
-			countDirs, countFiles)
-	}
-	return true
-}
-
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
 func readDir(s string, depth int) error {
 	depth++
@@ -96,7 +62,7 @@ func readDir(s string, depth int) error {
 			if opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
 			} else if opt.excludeEmptyFiles && file.info.Size() == 0 {
 			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
-			} else if opt.ignoreSymLinks && file.info.Mode()&os.ModeSymlink != 0 {
+			} else if !opt.followSymlinks && file.info.Mode()&os.ModeSymlink != 0 {
 			} else {
 				mutx.Lock()
 				AddFile(file)

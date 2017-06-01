@@ -25,7 +25,7 @@ type Options struct {
 	excludeEmptyFiles  bool
 	excludeHiddenFiles bool
 	enableRecursion    bool
-	ignoreSymLinks     bool
+	followSymlinks     bool
 	showSummary        bool
 	quiet              bool
 	showNotification   bool
@@ -46,7 +46,7 @@ func initOptions() (opt Options) {
 	flag.BoolVar(&opt.showCurrentValues, "debug", false,
 		"Show the current values of the program options")
 	flag.BoolVar(&opt.enableRecursion, "r", true, "Follow subdirectories (recursion)")
-	flag.BoolVar(&opt.ignoreSymLinks, "sym", true, "Ignore symlinks")
+	flag.BoolVar(&opt.followSymlinks, "s", false, "Follow symlinks")
 	flag.BoolVar(&opt.showSummary, "m", false, "Show a summary")
 	flag.BoolVar(&opt.quiet, "q", false, "Don't show progress info")
 	flag.BoolVar(&opt.showNotification, "show-notification", false,
@@ -78,7 +78,7 @@ func showDebugInfo(opt Options) {
 		fmt.Println("Target directory          :", opt.currentDir)
 		fmt.Println("Exclude zero length files :", opt.excludeEmptyFiles)
 		fmt.Println("Exclude hidden files      :", opt.excludeHiddenFiles)
-		fmt.Println("Ignore symlinks           :", opt.ignoreSymLinks)
+		fmt.Println("Ignore symlinks           :", opt.followSymlinks)
 		fmt.Println("Recursive search          :", opt.enableRecursion)
 		fmt.Println("Show a summary            :", opt.showSummary)
 		fmt.Println("Quiet                     :", opt.quiet)
