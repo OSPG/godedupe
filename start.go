@@ -55,6 +55,7 @@ func readDir(s string, depth int) error {
 
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
+			fmt.Printf("                                              \r")
 		}
 
 		if !file.info.IsDir() {
@@ -77,21 +78,31 @@ func readDir(s string, depth int) error {
 	return nil
 }
 
-// Start the program with the current options. Options param is read only
+// Start the program with the targetDirs options. Options param is read only
 func Start(options Options) {
+	// Set the global variable so readDir function can access to the options
 	opt = options
 
-	if info, err := os.Stat(opt.currentDir); err == nil && !info.IsDir() && !opt.quiet {
-		fmt.Printf("[-] %s is not a valid directory", info.Name())
+	if len(opt.targetDirs) == 0 {
+		fmt.Println("Errorr: No directory found")
 		return
 	}
-	if !opt.quiet {
-		fmt.Println("[+] Starting in directory:", opt.currentDir)
+
+	for _, dir := range opt.targetDirs {
+		if info, err := os.Stat(dir); err == nil && !info.IsDir() && !opt.quiet {
+			fmt.Printf("[-] %s is not a valid directory", info.Name())
+			return
+		}
 	}
 
-	err := readDir(opt.currentDir, 0)
-	if err != nil && !opt.quiet {
-		fmt.Println("[-]", err)
+	for _, dir := range opt.targetDirs {
+		if !opt.quiet {
+			fmt.Println("[+] Reading directory:", dir)
+		}
+		err := readDir(dir, 0)
+		if err != nil && !opt.quiet {
+			fmt.Println("[-]", err)
+		}
 	}
 
 	if !opt.quiet {
@@ -101,14 +112,14 @@ func Start(options Options) {
 	ValidateDuplicatedFiles()
 
 	reportData := ObtainReportData()
-	if options.sameLine {
+	if opt.sameLine {
 		reportData.ReportSameLine()
 	} else {
 		reportData.ReportDuplicated(opt.showSummary)
 	}
 
-	if options.jsonFile != "" {
-		reportData.ExportDuplicate(options.jsonFile)
+	if opt.jsonFile != "" {
+		reportData.ExportDuplicate(opt.jsonFile)
 	}
 
 	summary := fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",

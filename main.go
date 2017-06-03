@@ -14,10 +14,21 @@ const (
 	version string = "1.3.0"
 )
 
+type targetDirectories []string
+
+func (i *targetDirectories) String() string {
+	return ""
+}
+
+func (i *targetDirectories) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 // Options for start the program
 type Options struct {
 	cpuprofile         string
-	currentDir         string
+	targetDirs         targetDirectories
 	fileExt            string
 	jsonFile           string
 	maxDepth           int
@@ -36,8 +47,7 @@ type Options struct {
 func initOptions() (opt Options) {
 	fmt.Println()
 	flag.StringVar(&opt.cpuprofile, "cpuprofile", "", "Enable profiling")
-	flag.StringVar(&opt.currentDir, "t", GetUserHome(),
-		"Current directory where the program search for duplicated files")
+	flag.Var(&opt.targetDirs, "t", "Target directories where the program search for duplicated files")
 	flag.StringVar(&opt.jsonFile, "json", "", "Export the list of duplicated files to the given json file")
 	flag.StringVar(&opt.fileExt, "ext", "", "Only find duplicates for the given extension")
 	flag.IntVar(&opt.maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
@@ -75,7 +85,7 @@ func showDebugInfo(opt Options) {
 		fmt.Println("------------------------")
 		fmt.Println("Current option values")
 		fmt.Println("------------------------")
-		fmt.Println("Target directory          :", opt.currentDir)
+		fmt.Println("Target directory          :", opt.targetDirs)
 		fmt.Println("Exclude zero length files :", opt.excludeEmptyFiles)
 		fmt.Println("Exclude hidden files      :", opt.excludeHiddenFiles)
 		fmt.Println("Ignore symlinks           :", opt.followSymlinks)
