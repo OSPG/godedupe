@@ -26,20 +26,21 @@ func update(f os.FileInfo) {
 }
 
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
-func readDir(s string, depth int) error {
+func readDir(s string, depth int) {
 	depth++
 
 	files, err := ioutil.ReadDir(s)
 	if err != nil {
-		return err
+		fmt.Printf("[-] Directory %s could not be read and will be ignored. Error %s\n", err)
+		return
 	}
 	if len(files) == 0 {
-		return nil
+		return
 	}
 
 	for _, f := range files {
 		if f.Name() == ".godedupe_ignore" {
-			return nil
+			return
 		}
 	}
 
@@ -74,7 +75,6 @@ func readDir(s string, depth int) error {
 			}
 		}
 	}
-	return nil
 }
 
 // Start the program with the targetDirs options. Options param is read only
@@ -98,10 +98,7 @@ func Start(options Options) {
 		if !opt.quiet {
 			fmt.Println("[+] Reading directory:", dir)
 		}
-		err := readDir(dir, 0)
-		if err != nil && !opt.quiet {
-			fmt.Println("[-]", err)
-		}
+		readDir(dir, 0)
 	}
 
 	if !opt.quiet {
