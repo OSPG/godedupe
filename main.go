@@ -70,12 +70,10 @@ func initOptions() (opt Options) {
 }
 
 // Header show the program name and current version
-func header(is_quiet bool) {
-	if !is_quiet {
-		fmt.Println("------------------------")
-		fmt.Printf("%s - version %s\n", name, version)
-		fmt.Println("------------------------")
-	}
+func header() {
+	fmt.Println("------------------------")
+	fmt.Printf("%s - version %s\n", name, version)
+	fmt.Println("------------------------")
 }
 
 // ShowDebugInfo print all the current option values
@@ -122,7 +120,9 @@ func main() {
 		options.quiet = true
 	}
 
-	header(options.quiet)
+	if !options.quiet {
+		header()
+	}
 
 	showDebugInfo(options)
 

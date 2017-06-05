@@ -55,7 +55,6 @@ func readDir(s string, depth int) error {
 
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
-			fmt.Printf("                                              \r")
 		}
 
 		if !file.info.IsDir() {
