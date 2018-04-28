@@ -11,7 +11,7 @@ import (
 
 const (
 	name    string = "godedupe"
-	version string = "1.3.0"
+	version string = "1.3.1"
 )
 
 type targetDirectories []string
