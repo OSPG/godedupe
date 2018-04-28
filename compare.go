@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"hash/crc64"
+	"io"
 	"os"
 )
 
@@ -19,16 +22,58 @@ type Duplicated struct {
 var (
 	dupFileSize            = make(map[int64]Duplicated)
 	partialDuplicatedFiles = make(map[uint64]Duplicated)
+	// DuplicatedFiles store all know duplicated files
+	DuplicatedFiles = make(map[uint64]Duplicated)
 )
 
-// DuplicatedFiles store all know duplicated files
-var DuplicatedFiles = make(map[uint64]Duplicated)
+const bufferSize = 1024
+
+// computeHash calculates the hash for the current file
+// if bufferNumber is not zero then we will only hash the first bufferNumber
+// blocks (bufferSize)
+func computeHash(filename string, bufNumber int) (uint64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	hash := crc64.New(crc64.MakeTable(crc64.ECMA))
+	buf, reader := make([]byte, bufferSize), bufio.NewReader(file)
+	if bufNumber <= 0 {
+		for {
+			n, err := reader.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return 0, err
+			}
+
+			hash.Write(buf[:n])
+		}
+	} else {
+		for ; bufNumber > 0; bufNumber-- {
+			n, err := reader.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return 0, err
+			}
+
+			hash.Write(buf[:n])
+		}
+	}
+
+	return hash.Sum64(), nil
+}
 
 // compareFile checks if the hash of the "path" file are in the map, in that
 // case, append it to the listDuplicated otherwise creates a new Duplicated
 // for storing future duplicates of the current file
 func compareFile(file File, numBlocks int, dupMap map[uint64]Duplicated) {
-	hash, err := ComputeHash(file.path, numBlocks)
+	hash, err := computeHash(file.path, numBlocks)
 	if err != nil {
 		return
 	}
