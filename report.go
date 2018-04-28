@@ -11,15 +11,33 @@ type ReportData struct {
 	duplicates int64
 	sets       int
 	totalSize  int64
+	opt        Options
 }
 
-type JsonExport struct {
+type jsonExport struct {
 	Hash  uint64
 	Paths []string
 }
 
+// ConvertBytes to convenient convert bytes to other units
+func convertBytes(bytes int64) string {
+	if bytes < 1024 {
+		return fmt.Sprintf("%v bytes", bytes)
+	} else if bytes > 1024 && bytes < 1048576 {
+		return fmt.Sprintf("%.2f KB", float32(bytes)/float32(1024))
+	} else if bytes > 1048576 && bytes < 1073741824 {
+		return fmt.Sprintf("%.2f MB", float32(bytes)/float32(1048576))
+	}
+	return fmt.Sprintf("%.2f GB", float32(bytes)/float32(1073741824))
+}
+
+func (report *ReportData) getSummary() string {
+	return fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",
+		report.duplicates, report.sets, convertBytes(report.totalSize))
+}
+
 // ObtainReportData for this session
-func ObtainReportData() ReportData {
+func ObtainReportData(opt Options) ReportData {
 	var numDup int64
 	var sets int
 	var totalSize int64
@@ -31,13 +49,12 @@ func ObtainReportData() ReportData {
 			totalSize += f.info.Size()
 		}
 	}
-	reportData := ReportData{numDup, sets, totalSize}
+	reportData := ReportData{numDup, sets, totalSize, opt}
 	return reportData
 }
 
-// ReportDuplicated shows all the information regarding our duplicated files
-// if showSummary is true then a summary will printed too
-func (report *ReportData) ReportDuplicated(showSummary bool) {
+// reportDuplicated shows all the information regarding our duplicated files
+func (report *ReportData) reportDuplicated() {
 	fmt.Printf("LISTING DUPLICATED FILES\n")
 	fmt.Printf("-------------------------\n")
 
@@ -52,13 +69,12 @@ func (report *ReportData) ReportDuplicated(showSummary bool) {
 	fmt.Println("END OF LIST")
 	fmt.Println()
 
-	if showSummary {
-		fmt.Printf("[+] %d duplicated files (in %d sets), occupying %v\n",
-			report.duplicates, report.sets, ConvertBytes(report.totalSize))
+	if report.opt.showSummary {
+		fmt.Print(report.getSummary())
 	}
 }
 
-func (report *ReportData) ReportSameLine() {
+func (report *ReportData) reportSameLine() {
 	for k, v := range DuplicatedFiles {
 		fmt.Printf("%x", k)
 		for _, f := range v.listDuplicated {
@@ -69,8 +85,8 @@ func (report *ReportData) ReportSameLine() {
 }
 
 // ExportDuplicate exports the list of duplicated files to the given file
-func (report *ReportData) ExportDuplicate(dst_file string) {
-	f, err := os.OpenFile(dst_file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+func (report *ReportData) exportDuplicate(dstFile string) {
+	f, err := os.OpenFile(dstFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -84,8 +100,8 @@ func (report *ReportData) ExportDuplicate(dst_file string) {
 			paths = append(paths, f.path)
 		}
 
-		json_data := &JsonExport{Hash: k, Paths: paths}
-		json, err := json.MarshalIndent(json_data, "", "\t")
+		jsonData := &jsonExport{Hash: k, Paths: paths}
+		json, err := json.MarshalIndent(jsonData, "", "\t")
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -94,5 +110,27 @@ func (report *ReportData) ExportDuplicate(dst_file string) {
 			fmt.Println(err)
 			return
 		}
+	}
+}
+
+func (report *ReportData) showReportNotification() {
+	ShowNotification("godedupe finish", report.getSummary())
+}
+
+// DoReport does the report, printing it to stdout, and exporting it to a file
+// or showing a notification if necessary
+func (report *ReportData) DoReport() {
+	if report.opt.sameLine {
+		report.reportSameLine()
+	} else {
+		report.reportDuplicated()
+	}
+
+	if report.opt.jsonFile != "" {
+		report.exportDuplicate(report.opt.jsonFile)
+	}
+
+	if report.opt.showNotification {
+		report.showReportNotification()
 	}
 }

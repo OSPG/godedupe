@@ -107,20 +107,6 @@ func Start(options Options) {
 
 	ValidateDuplicatedFiles()
 
-	reportData := ObtainReportData()
-	if opt.sameLine {
-		reportData.ReportSameLine()
-	} else {
-		reportData.ReportDuplicated(opt.showSummary)
-	}
-
-	if opt.jsonFile != "" {
-		reportData.ExportDuplicate(opt.jsonFile)
-	}
-
-	summary := fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",
-		reportData.duplicates, reportData.sets, ConvertBytes(reportData.totalSize))
-	if opt.showNotification {
-		ShowNotification("godedupe finish", summary)
-	}
+	data := ObtainReportData(opt)
+	data.DoReport()
 }
