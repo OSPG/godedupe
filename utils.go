@@ -4,22 +4,11 @@ import (
 	"bufio"
 	"io"
 	"os"
-	"os/user"
 
 	"hash/crc64"
 )
 
 const bufferSize = 1024
-
-// GetUserHome obtain the current home directory of the user
-func GetUserHome() string {
-	usr, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-
-	return usr.HomeDir
-}
 
 // ComputeHash calculates the hash for the current file
 // if bufferNumber is not zero then we will only hash the first bufferNumber
