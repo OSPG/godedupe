@@ -12,7 +12,6 @@ import (
 var (
 	countDirs  int
 	countFiles int
-	opt        Options
 )
 
 var mutx sync.Mutex
@@ -31,7 +30,7 @@ func readDir(s string, depth int) {
 
 	files, err := ioutil.ReadDir(s)
 	if err != nil {
-		fmt.Printf("[-] Directory %s could not be read and will be ignored. Error %s\n", err)
+		fmt.Printf("[-] Error reading %s: %s\n", s, err)
 		return
 	}
 	if len(files) == 0 {
@@ -45,15 +44,13 @@ func readDir(s string, depth int) {
 	}
 
 	for _, f := range files {
-
-		path := s + string(filepath.Separator) + f.Name()
+		path := filepath.Join(s, f.Name())
 		file := File{
 			path,
 			f,
 		}
 
 		update(file.info)
-
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
@@ -78,19 +75,17 @@ func readDir(s string, depth int) {
 }
 
 // Start the program with the targetDirs options. Options param is read only
-func Start(options Options) {
+func start() {
 	// Set the global variable so readDir function can access to the options
-	opt = options
-
 	if len(opt.targetDirs) == 0 {
-		fmt.Println("Errorr: No directory found")
+		fmt.Println("error: directory must be specified. See help.")
 		return
 	}
 
-	for _, dir := range opt.targetDirs {
-		if info, err := os.Stat(dir); err == nil && !info.IsDir() && !opt.quiet {
-			fmt.Printf("[-] %s is not a valid directory", info.Name())
-			return
+	for i, dir := range opt.targetDirs {
+		if info, err := os.Stat(dir); !opt.quiet && err == nil && !info.IsDir() {
+			fmt.Printf("[-] %s is not a valid directory. Removing", dir)
+			opt.targetDirs = append(opt.targetDirs[:i], opt.targetDirs[i+1:]...)
 		}
 	}
 
