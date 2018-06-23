@@ -31,8 +31,3 @@ Then, for the keys that still have multiple values, a partial hash is done and s
 Finally, for all the values that are left we do the full hash of the file and add to another map. We delete the keys that have only one value, and then we report all the files that are left.
 
 For the hash we use a crc64
-
-
-### Resources
-
-The images used are from [icons8](https://icons8.com/)
