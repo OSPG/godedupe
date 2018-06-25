@@ -63,7 +63,10 @@ func (report *ReportData) reportDuplicated() {
 		}
 		wr.WriteString("-------------------------\n")
 	}
+
+	wr.WriteString("\n")
 	wr.Flush()
+
 	if report.opt.showSummary {
 		fmt.Print(report.getSummary())
 	}

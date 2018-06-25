@@ -71,37 +71,32 @@ func init() {
 
 // Header show the program name and current version
 func header() {
-	fmt.Printf(`------------------------
-%s - version %s
-------------------------`,
-		name, version)
+	fmt.Println("------------------------")
+	fmt.Printf("%s - version %s\n", name, version)
+	fmt.Println("------------------------")
 }
 
 // ShowDebugInfo print all the current option values
 func showDebugInfo() {
 	if opt.showCurrentValues {
-		fmt.Printf(`------------------------
-Current option values
-------------------------
-Target directory          : %v
-Exclude zero length files : %v
-Exclude hidden files      : %v
-Ignore symlinks           : %v
-Recursive search          : %v
-Show a summary            : %v
-Quiet                     : %v
-Show notification         : %v
-File extension            : %v
-Max depth                 : %v
-Json file                 : %v
-Profile output            : %v
-Same line                 : %v
-------------------------
-`,
-			opt.targetDirs, opt.excludeEmptyFiles, opt.excludeHiddenFiles,
-			opt.followSymlinks, opt.enableRecursion, opt.showSummary,
-			opt.quiet, opt.showNotification, opt.fileExt, opt.maxDepth, opt.jsonFile,
-			opt.cpuprofile, opt.sameLine)
+		fmt.Println()
+		fmt.Println("------------------------")
+		fmt.Println("Current option values")
+		fmt.Println("------------------------")
+		fmt.Println("Target directory	       :", opt.targetDirs)
+		fmt.Println("Exclude zero length files :", opt.excludeEmptyFiles)
+		fmt.Println("Exclude hidden files      :", opt.excludeHiddenFiles)
+		fmt.Println("Ignore symlinks	       :", opt.followSymlinks)
+		fmt.Println("Recursive search	       :", opt.enableRecursion)
+		fmt.Println("Show a summary	       :", opt.showSummary)
+		fmt.Println("Quiet		       :", opt.quiet)
+		fmt.Println("Show notification	       :", opt.showNotification)
+		fmt.Println("File extension	       :", opt.fileExt)
+		fmt.Println("Max depth		       :", opt.maxDepth)
+		fmt.Println("Json file		       :", opt.jsonFile)
+		fmt.Println("Profile output	       :", opt.cpuprofile)
+		fmt.Println("Same line		       :", opt.sameLine)
+		fmt.Println("------------------------")
 	}
 }
 
