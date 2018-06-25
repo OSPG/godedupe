@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/OSPG/godedupe/compare"
@@ -14,6 +15,7 @@ import (
 var (
 	countDirs  int
 	countFiles int
+	regexRule  *regexp.Regexp
 )
 
 func update(f os.FileInfo) {
@@ -58,7 +60,7 @@ func readDir(s string, depth int) {
 
 		if !file.Info.IsDir() {
 			// Only scan for files of a given extension
-			if opt.fileExt != "" && !strings.HasSuffix(file.Info.Name(), opt.fileExt) {
+			if opt.regex != "" && !regexRule.MatchString(file.Info.Name()) {
 			} else if opt.excludeEmptyFiles && file.Info.Size() == 0 {
 			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
 			} else if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
@@ -91,6 +93,15 @@ func start() {
 	for _, dir := range opt.targetDirs {
 		if !opt.quiet {
 			fmt.Println("[+] Reading directory:", dir)
+		}
+
+		if opt.regex != "" {
+			r, err := regexp.Compile(opt.regex)
+			regexRule = r
+			if err != nil {
+				fmt.Println("[-] Could not compile regular expression: ", err)
+				return
+			}
 		}
 		readDir(dir, 0)
 	}
