@@ -6,11 +6,9 @@ Godedupe is a tool for finding duplicated or similar files.
 
 It aims to be faster and provide a more intelligent approach for finding redundant files than old programs like fdupes.
 
-The version 1.1.0 is our second version. In this version the only supported OS will be GNU/Linux and a lot of features are mising
-but (at least) it is able to find duplicate files like fdupes does.
-
-With the release of version 2.0.0 its planned to be able to find files which are almost identical. Useful for example when one file
-is a modern version of other file.
+The version 1.x.x is our first usable version. For now the only supported OS is
+GNU/Linux and some features are measing but it is able to do their job, ie: find
+duplicate files like fdupes does, but faster.
 
 ### Version naming
 
