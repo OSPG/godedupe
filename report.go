@@ -56,9 +56,6 @@ func ObtainReportData() *ReportData {
 // reportDuplicated shows all the information regarding our duplicated files
 func (report *ReportData) reportDuplicated() {
 	wr := bufio.NewWriter(os.Stdout)
-	wr.WriteString("LISTING DUPLICATED FILES")
-	wr.WriteString("-------------------------")
-
 	for k, v := range DuplicatedFiles {
 		fmt.Fprintf(wr, "Listing duplicateds for hash: %x\n\n", k)
 		for _, f := range v.listDuplicated {
