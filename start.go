@@ -98,6 +98,6 @@ func start() {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
 	compare.ValidateDuplicatedFiles(!opt.quiet)
-	reportOpts := report.ReportOpts{opt.JsonFile, opt.ShowSummary, opt.ShowNotification, opt.SameLine}
+	reportOpts := report.Opts{opt.JsonFile, opt.ShowSummary, opt.ShowNotification, opt.SameLine}
 	report.ObtainReportData(compare.DuplicatedFiles, reportOpts).DoReport()
 }

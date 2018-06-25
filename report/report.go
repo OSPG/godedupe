@@ -9,17 +9,17 @@ import (
 	"github.com/OSPG/godedupe/compare"
 )
 
-type ReportOpts struct {
+type Opts struct {
 	JsonFile         string
 	ShowSummary      bool
 	ShowNotification bool
 	SameLine         bool
 }
 
-// ReportData contains the basic data to generate a basic report
-type ReportData struct {
+// Data contains the basic data to generate a basic report
+type Data struct {
 	dupFiles   map[uint64]compare.Duplicated
-	opt        ReportOpts
+	opt        Opts
 	duplicates int64
 	sets       int
 	totalSize  int64
@@ -42,13 +42,13 @@ func convertBytes(bytes int64) string {
 	return fmt.Sprintf("%.2f GB", float32(bytes)/float32(1073741824))
 }
 
-func (report *ReportData) getSummary() string {
+func (report *Data) getSummary() string {
 	return fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",
 		report.duplicates, report.sets, convertBytes(report.totalSize))
 }
 
 // ObtainReportData for this session
-func ObtainReportData(dupFiles map[uint64]compare.Duplicated, opts ReportOpts) *ReportData {
+func ObtainReportData(dupFiles map[uint64]compare.Duplicated, opts Opts) *Data {
 
 	var numDup int64
 	var sets int
@@ -61,11 +61,11 @@ func ObtainReportData(dupFiles map[uint64]compare.Duplicated, opts ReportOpts) *
 			totalSize += f.Info.Size()
 		}
 	}
-	return &ReportData{dupFiles, opts, numDup, sets, totalSize}
+	return &Data{dupFiles, opts, numDup, sets, totalSize}
 }
 
 // reportDuplicated shows all the information regarding our duplicated files
-func (report *ReportData) reportDuplicated() {
+func (report *Data) reportDuplicated() {
 	wr := bufio.NewWriter(os.Stdout)
 	for k, v := range report.dupFiles {
 		fmt.Fprintf(wr, "Listing duplicateds for hash: %x\n\n", k)
@@ -83,7 +83,7 @@ func (report *ReportData) reportDuplicated() {
 	}
 }
 
-func (report *ReportData) reportSameLine() {
+func (report *Data) reportSameLine() {
 	for k, v := range report.dupFiles {
 		fmt.Printf("%x", k)
 		for _, f := range v.ListDuplicated {
@@ -94,7 +94,7 @@ func (report *ReportData) reportSameLine() {
 }
 
 // ExportDuplicate exports the list of duplicated files to the given file
-func (report *ReportData) exportDuplicate(dstFile string) {
+func (report *Data) exportDuplicate(dstFile string) {
 	f, err := os.OpenFile(dstFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		fmt.Println(err)
@@ -122,13 +122,13 @@ func (report *ReportData) exportDuplicate(dstFile string) {
 	}
 }
 
-func (report *ReportData) showReportNotification() {
+func (report *Data) showReportNotification() {
 	ShowNotification("godedupe finish", report.getSummary())
 }
 
 // DoReport does the report, printing it to stdout, and exporting it to a file
 // or showing a notification if necessary
-func (report *ReportData) DoReport() {
+func (report *Data) DoReport() {
 	if report.opt.SameLine {
 		report.reportSameLine()
 	} else {

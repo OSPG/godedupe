@@ -28,7 +28,7 @@ func (i *targetDirectories) Set(value string) error {
 
 // Options for start the program
 type Options struct {
-	report.ReportOpts
+	report.Opts
 
 	cpuprofile         string
 	targetDirs         targetDirectories
