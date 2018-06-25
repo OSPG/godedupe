@@ -6,15 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 var (
 	countDirs  int
 	countFiles int
 )
-
-var mutx sync.Mutex
 
 func update(f os.FileInfo) {
 	if f.IsDir() {
@@ -54,7 +51,6 @@ func readDir(s string, depth int) {
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
-
 		if !file.info.IsDir() {
 			// Only scan for files of a given extension
 			if opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
@@ -62,9 +58,7 @@ func readDir(s string, depth int) {
 			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
 			} else if !opt.followSymlinks && file.info.Mode()&os.ModeSymlink != 0 {
 			} else {
-				mutx.Lock()
 				AddFile(file)
-				mutx.Unlock()
 			}
 		} else if opt.enableRecursion {
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
@@ -82,26 +76,21 @@ func start() {
 		return
 	}
 
-	for i, dir := range opt.targetDirs {
+	for _, dir := range opt.targetDirs {
 		if info, err := os.Stat(dir); !opt.quiet && err == nil && !info.IsDir() {
 			fmt.Printf("[-] %s is not a valid directory. Removing", dir)
-			opt.targetDirs = append(opt.targetDirs[:i], opt.targetDirs[i+1:]...)
+			// TODO: Delete target dir
 		}
 	}
-
 	for _, dir := range opt.targetDirs {
 		if !opt.quiet {
 			fmt.Println("[+] Reading directory:", dir)
 		}
 		readDir(dir, 0)
 	}
-
 	if !opt.quiet {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
-
 	ValidateDuplicatedFiles()
-
-	data := ObtainReportData(opt)
-	data.DoReport()
+	ObtainReportData().DoReport()
 }

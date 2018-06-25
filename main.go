@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"time"
 )
@@ -72,9 +71,10 @@ func init() {
 
 // Header show the program name and current version
 func header() {
-	fmt.Println("------------------------")
-	fmt.Printf("%s - version %s\n", name, version)
-	fmt.Println("------------------------")
+	fmt.Printf(`------------------------
+%s - version %s
+------------------------`,
+		name, version)
 }
 
 // ShowDebugInfo print all the current option values
@@ -121,22 +121,15 @@ func main() {
 	if opt.sameLine {
 		opt.quiet = true
 	}
-
 	if !opt.quiet {
 		header()
 	}
-
 	showDebugInfo()
-
 	if opt.cpuprofile != "" {
 		executeCPUProfile(opt.cpuprofile)
 		defer pprof.StopCPUProfile()
 	}
-
-	if !opt.quiet {
-		defer trackTime(time.Now())
-	}
-
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	st := time.Now()
 	start()
+	trackTime(st)
 }

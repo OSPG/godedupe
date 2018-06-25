@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,7 +38,7 @@ func (report *ReportData) getSummary() string {
 }
 
 // ObtainReportData for this session
-func ObtainReportData(opt Options) ReportData {
+func ObtainReportData() *ReportData {
 	var numDup int64
 	var sets int
 	var totalSize int64
@@ -49,26 +50,23 @@ func ObtainReportData(opt Options) ReportData {
 			totalSize += f.info.Size()
 		}
 	}
-	reportData := ReportData{numDup, sets, totalSize, opt}
-	return reportData
+	return &ReportData{numDup, sets, totalSize, opt}
 }
 
 // reportDuplicated shows all the information regarding our duplicated files
 func (report *ReportData) reportDuplicated() {
-	fmt.Printf("LISTING DUPLICATED FILES\n")
-	fmt.Printf("-------------------------\n")
+	wr := bufio.NewWriter(os.Stdout)
+	wr.WriteString("LISTING DUPLICATED FILES")
+	wr.WriteString("-------------------------")
 
 	for k, v := range DuplicatedFiles {
-		fmt.Printf("Listing duplicateds for hash : %x\n\n", k)
+		fmt.Fprintf(wr, "Listing duplicateds for hash: %x\n\n", k)
 		for _, f := range v.listDuplicated {
-			fmt.Println(f.path)
+			fmt.Fprintln(wr, f.path)
 		}
-		fmt.Printf("-------------------------\n")
+		wr.WriteString("-------------------------\n")
 	}
-
-	fmt.Println("END OF LIST")
-	fmt.Println()
-
+	wr.Flush()
 	if report.opt.showSummary {
 		fmt.Print(report.getSummary())
 	}
