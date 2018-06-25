@@ -6,6 +6,8 @@ import (
 	"os"
 	"runtime/pprof"
 	"time"
+
+	"github.com/OSPG/godedupe/report"
 )
 
 const (
@@ -26,20 +28,18 @@ func (i *targetDirectories) Set(value string) error {
 
 // Options for start the program
 type Options struct {
+	report.ReportOpts
+
 	cpuprofile         string
 	targetDirs         targetDirectories
 	fileExt            string
-	jsonFile           string
 	maxDepth           int
 	showCurrentValues  bool
 	excludeEmptyFiles  bool
 	excludeHiddenFiles bool
 	enableRecursion    bool
 	followSymlinks     bool
-	showSummary        bool
 	quiet              bool
-	showNotification   bool
-	sameLine           bool
 }
 
 var (
@@ -50,7 +50,7 @@ var (
 func init() {
 	flag.StringVar(&opt.cpuprofile, "cpuprofile", "", "Enable profiling")
 	flag.Var(&opt.targetDirs, "t", "Target directories where the program search for duplicated files")
-	flag.StringVar(&opt.jsonFile, "json", "", "Export the list of duplicated files to the given json file")
+	flag.StringVar(&opt.JsonFile, "json", "", "Export the list of duplicated files to the given json file")
 	flag.StringVar(&opt.fileExt, "ext", "", "Only find duplicates for the given extension")
 	flag.IntVar(&opt.maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
 	flag.BoolVar(&opt.excludeEmptyFiles, "z", true, "Exclude the zero length files")
@@ -59,13 +59,12 @@ func init() {
 		"Show the current values of the program options")
 	flag.BoolVar(&opt.enableRecursion, "r", true, "Follow subdirectories (recursion)")
 	flag.BoolVar(&opt.followSymlinks, "s", false, "Follow symlinks")
-	flag.BoolVar(&opt.showSummary, "m", false, "Show a summary")
+	flag.BoolVar(&opt.ShowSummary, "m", false, "Show a summary")
 	flag.BoolVar(&opt.quiet, "q", false, "Don't show progress info")
-	flag.BoolVar(&opt.showNotification, "show-notification", false,
+	flag.BoolVar(&opt.ShowNotification, "show-notification", false,
 		"Show a desktop notification when the program finish")
-	flag.BoolVar(&opt.sameLine, "1", false,
-		"Show each set of duplicated files in one line (for scripting). "+
-			"It implies -q (quiet) and ignores -m (show summary)")
+	flag.BoolVar(&opt.SameLine, "1", false, "Show each set of duplicated files in one line."+
+		"It implies -q (quiet) and ignores -m (show summary)")
 	flag.Parse()
 }
 
@@ -88,14 +87,14 @@ func showDebugInfo() {
 		fmt.Println("Exclude hidden files      :", opt.excludeHiddenFiles)
 		fmt.Println("Ignore symlinks           :", opt.followSymlinks)
 		fmt.Println("Recursive search          :", opt.enableRecursion)
-		fmt.Println("Show a summary            :", opt.showSummary)
+		fmt.Println("Show a summary            :", opt.ShowSummary)
 		fmt.Println("Quiet                     :", opt.quiet)
-		fmt.Println("Show notification         :", opt.showNotification)
+		fmt.Println("Show notification         :", opt.ShowNotification)
 		fmt.Println("File extension            :", opt.fileExt)
 		fmt.Println("Max depth                 :", opt.maxDepth)
-		fmt.Println("Json file                 :", opt.jsonFile)
+		fmt.Println("Json file                 :", opt.JsonFile)
 		fmt.Println("Profile output            :", opt.cpuprofile)
-		fmt.Println("Same line                 :", opt.sameLine)
+		fmt.Println("Same line                 :", opt.SameLine)
 		fmt.Println("------------------------")
 	}
 }
@@ -113,7 +112,7 @@ func executeCPUProfile(profile string) {
 }
 
 func main() {
-	if opt.sameLine {
+	if opt.SameLine {
 		opt.quiet = true
 	}
 	if !opt.quiet {

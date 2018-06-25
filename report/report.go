@@ -9,17 +9,17 @@ import (
 	"github.com/OSPG/godedupe/compare"
 )
 
-type reportOpts struct {
-	jsonFile         string
-	showSummary      bool
-	showNotification bool
-	sameLine         bool
+type ReportOpts struct {
+	JsonFile         string
+	ShowSummary      bool
+	ShowNotification bool
+	SameLine         bool
 }
 
 // ReportData contains the basic data to generate a basic report
 type ReportData struct {
 	dupFiles   map[uint64]compare.Duplicated
-	opt        reportOpts
+	opt        ReportOpts
 	duplicates int64
 	sets       int
 	totalSize  int64
@@ -48,8 +48,7 @@ func (report *ReportData) getSummary() string {
 }
 
 // ObtainReportData for this session
-func ObtainReportData(dupFiles map[uint64]compare.Duplicated, jsonFile string,
-	summary bool, notifications bool, sameLine bool) *ReportData {
+func ObtainReportData(dupFiles map[uint64]compare.Duplicated, opts ReportOpts) *ReportData {
 
 	var numDup int64
 	var sets int
@@ -62,7 +61,6 @@ func ObtainReportData(dupFiles map[uint64]compare.Duplicated, jsonFile string,
 			totalSize += f.Info.Size()
 		}
 	}
-	opts := reportOpts{jsonFile, summary, notifications, sameLine}
 	return &ReportData{dupFiles, opts, numDup, sets, totalSize}
 }
 
@@ -80,7 +78,7 @@ func (report *ReportData) reportDuplicated() {
 	wr.WriteString("\n")
 	wr.Flush()
 
-	if report.opt.showSummary {
+	if report.opt.ShowSummary {
 		fmt.Print(report.getSummary())
 	}
 }
@@ -131,17 +129,17 @@ func (report *ReportData) showReportNotification() {
 // DoReport does the report, printing it to stdout, and exporting it to a file
 // or showing a notification if necessary
 func (report *ReportData) DoReport() {
-	if report.opt.sameLine {
+	if report.opt.SameLine {
 		report.reportSameLine()
 	} else {
 		report.reportDuplicated()
 	}
 
-	if report.opt.jsonFile != "" {
-		report.exportDuplicate(report.opt.jsonFile)
+	if report.opt.JsonFile != "" {
+		report.exportDuplicate(report.opt.JsonFile)
 	}
 
-	if report.opt.showNotification {
+	if report.opt.ShowNotification {
 		report.showReportNotification()
 	}
 }
