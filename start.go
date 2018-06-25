@@ -77,9 +77,10 @@ func start() {
 	}
 
 	for _, dir := range opt.targetDirs {
-		if info, err := os.Stat(dir); !opt.quiet && err == nil && !info.IsDir() {
-			fmt.Printf("[-] %s is not a valid directory. Removing", dir)
-			// TODO: Delete target dir
+		if info, err := os.Stat(dir); err == nil && !info.IsDir() && !opt.quiet {
+         // This should return an error to avoid hiding potential configuration errors
+			fmt.Printf("[-] %s is not a valid directory", info.Name())
+			return
 		}
 	}
 	for _, dir := range opt.targetDirs {
