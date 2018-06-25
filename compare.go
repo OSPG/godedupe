@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"hash"
 	"hash/crc64"
 	"io"
 	"os"
+	"sync"
 )
 
 // File contains the path to the file and her info
@@ -28,6 +30,19 @@ var (
 
 const bufferSize = 1024
 
+var (
+	bytePool = &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, bufferSize)
+		},
+	}
+	crcPool = &sync.Pool{
+		New: func() interface{} {
+			return crc64.New(crc64.MakeTable(crc64.ECMA))
+		},
+	}
+)
+
 // computeHash calculates the hash for the current file
 // if bufferNumber is not zero then we will only hash the first bufferNumber
 // blocks (bufferSize)
@@ -38,9 +53,9 @@ func computeHash(filename string, bufNumber int) (uint64, error) {
 	}
 	defer file.Close()
 
-	hash := crc64.New(crc64.MakeTable(crc64.ECMA))
-	buf, reader := make([]byte, bufferSize), bufio.NewReader(file)
-	if bufNumber <= 0 {
+	hash := crcPool.Get().(hash.Hash64)
+	buf, reader := bytePool.Get().([]byte), bufio.NewReader(file)
+	if bufNumber == 0 {
 		for {
 			n, err := reader.Read(buf)
 			if err != nil {
@@ -65,8 +80,12 @@ func computeHash(filename string, bufNumber int) (uint64, error) {
 			hash.Write(buf[:n])
 		}
 	}
+	bytePool.Put(buf)
+	s := hash.Sum64()
+	hash.Reset()
+	crcPool.Put(hash)
 
-	return hash.Sum64(), nil
+	return s, nil
 }
 
 // compareFile checks if the hash of the "path" file are in the map, in that
