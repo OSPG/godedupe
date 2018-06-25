@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/OSPG/godedupe)](https://goreportcard.com/report/github.com/OSPG/godedupe)
+
 # godedupe
 
 Godedupe is a tool for finding duplicated or similar files.
