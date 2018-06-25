@@ -1,18 +1,28 @@
-package main
+package report
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/OSPG/godedupe/compare"
 )
+
+type reportOpts struct {
+	jsonFile         string
+	showSummary      bool
+	showNotification bool
+	sameLine         bool
+}
 
 // ReportData contains the basic data to generate a basic report
 type ReportData struct {
+	dupFiles   map[uint64]compare.Duplicated
+	opt        reportOpts
 	duplicates int64
 	sets       int
 	totalSize  int64
-	opt        Options
 }
 
 type jsonExport struct {
@@ -38,28 +48,31 @@ func (report *ReportData) getSummary() string {
 }
 
 // ObtainReportData for this session
-func ObtainReportData() *ReportData {
+func ObtainReportData(dupFiles map[uint64]compare.Duplicated, jsonFile string,
+	summary bool, notifications bool, sameLine bool) *ReportData {
+
 	var numDup int64
 	var sets int
 	var totalSize int64
-	for _, v := range DuplicatedFiles {
-		dups := len(v.listDuplicated) - 1
+	for _, v := range dupFiles {
+		dups := len(v.ListDuplicated) - 1
 		numDup += int64(dups)
 		sets++
-		for _, f := range v.listDuplicated[1:] {
-			totalSize += f.info.Size()
+		for _, f := range v.ListDuplicated[1:] {
+			totalSize += f.Info.Size()
 		}
 	}
-	return &ReportData{numDup, sets, totalSize, opt}
+	opts := reportOpts{jsonFile, summary, notifications, sameLine}
+	return &ReportData{dupFiles, opts, numDup, sets, totalSize}
 }
 
 // reportDuplicated shows all the information regarding our duplicated files
 func (report *ReportData) reportDuplicated() {
 	wr := bufio.NewWriter(os.Stdout)
-	for k, v := range DuplicatedFiles {
+	for k, v := range report.dupFiles {
 		fmt.Fprintf(wr, "Listing duplicateds for hash: %x\n\n", k)
-		for _, f := range v.listDuplicated {
-			fmt.Fprintln(wr, f.path)
+		for _, f := range v.ListDuplicated {
+			fmt.Fprintln(wr, f.Path)
 		}
 		wr.WriteString("-------------------------\n")
 	}
@@ -73,10 +86,10 @@ func (report *ReportData) reportDuplicated() {
 }
 
 func (report *ReportData) reportSameLine() {
-	for k, v := range DuplicatedFiles {
+	for k, v := range report.dupFiles {
 		fmt.Printf("%x", k)
-		for _, f := range v.listDuplicated {
-			fmt.Printf(" %s", f.path)
+		for _, f := range v.ListDuplicated {
+			fmt.Printf(" %s", f.Path)
 		}
 		fmt.Println()
 	}
@@ -92,10 +105,10 @@ func (report *ReportData) exportDuplicate(dstFile string) {
 
 	defer f.Close()
 
-	for k, v := range DuplicatedFiles {
+	for k, v := range report.dupFiles {
 		var paths []string
-		for _, f := range v.listDuplicated {
-			paths = append(paths, f.path)
+		for _, f := range v.ListDuplicated {
+			paths = append(paths, f.Path)
 		}
 
 		jsonData := &jsonExport{Hash: k, Paths: paths}

@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/OSPG/godedupe/compare"
+	"github.com/OSPG/godedupe/report"
 )
 
 var (
@@ -42,23 +45,25 @@ func readDir(s string, depth int) {
 
 	for _, f := range files {
 		path := filepath.Join(s, f.Name())
-		file := File{
+		file := compare.File{
 			path,
 			f,
 		}
 
-		update(file.info)
+		update(file.Info)
+
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
-		if !file.info.IsDir() {
+
+		if !file.Info.IsDir() {
 			// Only scan for files of a given extension
-			if opt.fileExt != "" && !strings.HasSuffix(file.info.Name(), opt.fileExt) {
-			} else if opt.excludeEmptyFiles && file.info.Size() == 0 {
-			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.info.Name(), ".") {
-			} else if !opt.followSymlinks && file.info.Mode()&os.ModeSymlink != 0 {
+			if opt.fileExt != "" && !strings.HasSuffix(file.Info.Name(), opt.fileExt) {
+			} else if opt.excludeEmptyFiles && file.Info.Size() == 0 {
+			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
+			} else if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
 			} else {
-				AddFile(file)
+				compare.AddFile(file)
 			}
 		} else if opt.enableRecursion {
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
@@ -78,7 +83,7 @@ func start() {
 
 	for _, dir := range opt.targetDirs {
 		if info, err := os.Stat(dir); err == nil && !info.IsDir() && !opt.quiet {
-         // This should return an error to avoid hiding potential configuration errors
+			// This should return an error to avoid hiding potential configuration errors
 			fmt.Printf("[-] %s is not a valid directory", info.Name())
 			return
 		}
@@ -92,6 +97,6 @@ func start() {
 	if !opt.quiet {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
-	ValidateDuplicatedFiles()
-	ObtainReportData().DoReport()
+	compare.ValidateDuplicatedFiles(!opt.quiet)
+	report.ObtainReportData(compare.DuplicatedFiles, opt.jsonFile, opt.showSummary, opt.showNotification, opt.sameLine).DoReport()
 }
