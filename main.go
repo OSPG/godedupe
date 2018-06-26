@@ -32,7 +32,7 @@ type Options struct {
 
 	cpuprofile         string
 	targetDirs         targetDirectories
-	regex              string
+	pattern            string
 	maxDepth           int
 	showCurrentValues  bool
 	excludeEmptyFiles  bool
@@ -51,7 +51,7 @@ func init() {
 	flag.StringVar(&opt.cpuprofile, "cpuprofile", "", "Enable profiling")
 	flag.Var(&opt.targetDirs, "t", "Target directories where the program search for duplicated files")
 	flag.StringVar(&opt.JsonFile, "json", "", "Export the list of duplicated files to the given json file")
-	flag.StringVar(&opt.regex, "regexp", "", "Only find duplicates for the given extension")
+	flag.StringVar(&opt.pattern, "pattern", "", "Only find duplicates if the given pattern match")
 	flag.IntVar(&opt.maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
 	flag.BoolVar(&opt.excludeEmptyFiles, "z", true, "Exclude the zero length files")
 	flag.BoolVar(&opt.excludeHiddenFiles, "e", true, "Exclude the hidden files")
@@ -90,7 +90,7 @@ func showDebugInfo() {
 		fmt.Println("Show a summary            :", opt.ShowSummary)
 		fmt.Println("Quiet                     :", opt.quiet)
 		fmt.Println("Show notification         :", opt.ShowNotification)
-		fmt.Println("File extension            :", opt.regex)
+		fmt.Println("Pattern                   :", opt.pattern)
 		fmt.Println("Max depth                 :", opt.maxDepth)
 		fmt.Println("Json file                 :", opt.JsonFile)
 		fmt.Println("Profile output            :", opt.cpuprofile)
