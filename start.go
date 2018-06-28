@@ -56,6 +56,10 @@ func readDir(s string, depth int) {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
 
+		if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
+			return
+		}
+
 		if !file.Info.IsDir() {
 			// Only scan for files of a given extension
 			matched := true
@@ -64,7 +68,6 @@ func readDir(s string, depth int) {
 			}
 			if !matched {
 			} else if opt.excludeEmptyFiles && file.Info.Size() == 0 {
-			} else if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
 			} else if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
 			} else {
 				compare.AddFile(file)
