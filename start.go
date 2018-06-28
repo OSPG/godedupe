@@ -44,20 +44,21 @@ func readDir(s string, depth int) {
 	}
 
 	for _, f := range files {
+
 		path := filepath.Join(s, f.Name())
 		file := compare.File{
 			path,
 			f,
 		}
 
+		if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
+			continue
+		}
+
 		update(file.Info)
 
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
-		}
-
-		if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
-			return
 		}
 
 		if !file.Info.IsDir() {
