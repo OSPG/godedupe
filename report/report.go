@@ -43,7 +43,7 @@ func convertBytes(bytes int64) string {
 }
 
 func (report *Data) getSummary() string {
-	return fmt.Sprintf("%v duplicated files in (%v sets) occupying %v bytes\n",
+	return fmt.Sprintf("%v duplicated files in (%v sets) occupying %v\n",
 		report.duplicates, report.sets, convertBytes(report.totalSize))
 }
 
