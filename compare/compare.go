@@ -140,12 +140,12 @@ func AddFile(file File) {
 // ValidateDuplicatedFiles do the full hash of the duplicatedFiles to
 // avoid false positives
 func ValidateDuplicatedFiles(verbose bool) {
-	doCompare(verbose)
-	obtainDuplicates(verbose)
+	doPartialCompare(verbose)
+	doFullCompare(verbose)
 }
 
 // make the full file comparison
-func obtainDuplicates(verbose bool) {
+func doFullCompare(verbose bool) {
 	filesBefore := 0
 	for _, v := range partialDuplicatedFiles {
 		filesBefore += len(v.ListDuplicated)
@@ -183,7 +183,7 @@ func obtainDuplicates(verbose bool) {
 }
 
 // make a partial file comparison
-func doCompare(verbose bool) {
+func doPartialCompare(verbose bool) {
 	filesBefore := 0
 	for _, v := range dupFileSize {
 		filesBefore += len(v.ListDuplicated)

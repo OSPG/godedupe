@@ -57,10 +57,6 @@ func readDir(s string, depth int) {
 
 		update(file.Info)
 
-		if !opt.quiet {
-			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
-		}
-
 		if !file.Info.IsDir() {
 			// Only scan for files of a given extension
 			matched := true
@@ -78,6 +74,10 @@ func readDir(s string, depth int) {
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
 				readDir(path, depth)
 			}
+		}
+
+		if !opt.quiet {
+			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
 	}
 }
@@ -109,11 +109,14 @@ func start() {
 				return
 			}
 		}
+
 		readDir(dir, 0)
 	}
+
 	if !opt.quiet {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
+
 	compare.ValidateDuplicatedFiles(!opt.quiet)
 	reportOpts := report.Opts{opt.JsonFile, opt.ShowSummary, opt.ShowNotification, opt.SameLine}
 	report.ObtainReportData(compare.DuplicatedFiles, reportOpts).DoReport()

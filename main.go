@@ -78,6 +78,7 @@ func header() {
 // ShowDebugInfo print all the current option values
 func showDebugInfo() {
 	if opt.showCurrentValues {
+		header()
 		fmt.Println()
 		fmt.Println("------------------------")
 		fmt.Println("Current option values")
@@ -115,9 +116,7 @@ func main() {
 	if opt.SameLine {
 		opt.quiet = true
 	}
-	if !opt.quiet {
-		header()
-	}
+
 	showDebugInfo()
 	if opt.cpuprofile != "" {
 		executeCPUProfile(opt.cpuprofile)
