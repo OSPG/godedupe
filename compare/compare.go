@@ -209,7 +209,14 @@ func doCompare(verbose bool) {
 	i := 0
 	for _, v := range dupFileSize {
 		for _, f := range v.ListDuplicated {
-			compareFile(f, 1, partialDuplicatedFiles)
+			// If file size is less than bufferSize the partial
+			// comparison will hash the entire file so we can skip this step
+			// and put the result directly on the final map
+			if f.Info.Size() <= bufferSize {
+				compareFile(f, 0, DuplicatedFiles)
+			} else {
+				compareFile(f, 1, partialDuplicatedFiles)
+			}
 		}
 		if verbose {
 			i++

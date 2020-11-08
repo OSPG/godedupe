@@ -67,6 +67,7 @@ func readDir(s string, depth int) {
 			if opt.pattern != "" {
 				matched, _ = filepath.Match(opt.pattern, file.Info.Name())
 			}
+
 			if !matched {
 			} else if opt.excludeEmptyFiles && file.Info.Size() == 0 {
 			} else if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
