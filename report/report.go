@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/OSPG/godedupe/compare"
+	"godedupe/compare"
 )
 
 type Opts struct {

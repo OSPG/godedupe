@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/OSPG/godedupe/compare"
-	"github.com/OSPG/godedupe/report"
+	"godedupe/compare"
+	"godedupe/report"
 	"godedupe/filter"
 )
 

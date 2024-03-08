@@ -7,7 +7,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/OSPG/godedupe/report"
+	"godedupe/report"
 )
 
 const (
