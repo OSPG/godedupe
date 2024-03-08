@@ -3,8 +3,8 @@ package filter
 import (
 	"path/filepath"
 	"strings"
+	"errors"
 
-	"github.com/restic/restic/internal/errors"
 )
 
 // ErrBadString is returned when Match is called with the empty string as the
@@ -204,7 +204,7 @@ func match(pattern Pattern, strs []string) (matched bool, err error) {
 				} else {
 					ok, err = filepath.Match(pattern.parts[i].pattern, strs[offset+i])
 					if err != nil {
-						return false, errors.Wrap(err, "Match")
+						return false, err 
 					}
 				}
 
