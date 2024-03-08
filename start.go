@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,11 +10,13 @@ import (
 
 	"github.com/OSPG/godedupe/compare"
 	"github.com/OSPG/godedupe/report"
+	"godedupe/filter"
 )
 
 var (
-	countDirs  int
-	countFiles int
+	countDirs       int
+	countFiles      int
+	excludePatterns []string
 )
 
 func update(f os.FileInfo) {
@@ -22,6 +25,20 @@ func update(f os.FileInfo) {
 	} else {
 		countFiles++
 	}
+}
+
+func loadExcludePatterns(fname string) error {
+	file, err := os.Open(fname)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		excludePatterns = append(excludePatterns, scanner.Text())
+	}
+	return scanner.Err()
 }
 
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
@@ -52,6 +69,17 @@ func readDir(s string, depth int) {
 		}
 
 		if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
+			continue
+		}
+
+		p := filter.ParsePatterns(excludePatterns)
+		matched, err := filter.List(p, path)
+		if err != nil {
+			fmt.Printf("[-] Error %s\n", err)
+			return
+		}
+
+		if matched {
 			continue
 		}
 
@@ -87,6 +115,12 @@ func start() {
 	// Set the global variable so readDir function can access to the options
 	if len(opt.targetDirs) == 0 {
 		fmt.Println("error: directory must be specified. See help.")
+		return
+	}
+
+	err := loadExcludePatterns(opt.excludeFrom)
+	if err != nil {
+		fmt.Printf("[-] Error reading %s: %s\n", opt.excludeFrom, err)
 		return
 	}
 
