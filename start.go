@@ -30,6 +30,12 @@ func update(f os.FileInfo) {
 func loadExcludePatterns(fname string) error {
 	file, err := os.Open(fname)
 	if err != nil {
+		if fname == defaultExcludeFile {
+			// only shown a warning, probably the user doesn't want to use it
+			fmt.Printf("[?] Exclude patterns will not be used: %s\n", err)
+			return nil
+		}
+
 		return err
 	}
 	defer file.Close()

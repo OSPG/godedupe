@@ -12,8 +12,10 @@ import (
 
 const (
 	name    string = "godedupe"
-	version string = "1.4.0"
+	version string = "1.5.2"
 )
+
+const defaultExcludeFile string = "~/.godedupe-exclude"
 
 type targetDirectories []string
 
@@ -53,7 +55,7 @@ func init() {
 	flag.Var(&opt.targetDirs, "t", "Target directories where the program search for duplicated files")
 	flag.StringVar(&opt.JsonFile, "json", "", "Export the list of duplicated files to the given json file")
 	flag.StringVar(&opt.pattern, "pattern", "", "Only find duplicates if the given pattern match")
-	flag.StringVar(&opt.excludeFrom, "exclude-from", "~/.godedupe-exclude", "Exclude all patterns from the given file")
+	flag.StringVar(&opt.excludeFrom, "exclude-from", defaultExcludeFile, "Exclude all patterns from the given file")
 	flag.IntVar(&opt.maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
 	flag.BoolVar(&opt.excludeEmptyFiles, "z", true, "Exclude the zero length files")
 	flag.BoolVar(&opt.excludeHiddenFiles, "e", true, "Exclude the hidden files")
