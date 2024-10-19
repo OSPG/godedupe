@@ -74,7 +74,7 @@ func readDir(s string, depth int) {
 			f,
 		}
 
-		if opt.excludeHiddenFiles && strings.HasPrefix(file.Info.Name(), ".") {
+		if opt.excludeHidden && strings.HasPrefix(f.Name(), ".") {
 			continue
 		}
 

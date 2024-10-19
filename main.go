@@ -39,7 +39,7 @@ type Options struct {
 	maxDepth           int
 	showCurrentValues  bool
 	excludeEmptyFiles  bool
-	excludeHiddenFiles bool
+	excludeHidden bool
 	enableRecursion    bool
 	followSymlinks     bool
 	quiet              bool
@@ -58,7 +58,7 @@ func init() {
 	flag.StringVar(&opt.excludeFrom, "exclude-from", defaultExcludeFile, "Exclude all patterns from the given file")
 	flag.IntVar(&opt.maxDepth, "d", -1, "Max recursion depth, -1 = no limit. 1 = current directory")
 	flag.BoolVar(&opt.excludeEmptyFiles, "z", true, "Exclude the zero length files")
-	flag.BoolVar(&opt.excludeHiddenFiles, "e", true, "Exclude the hidden files")
+	flag.BoolVar(&opt.excludeHidden, "e", true, "Exclude the hidden files")
 	flag.BoolVar(&opt.showCurrentValues, "debug", false,
 		"Show the current values of the program options")
 	flag.BoolVar(&opt.enableRecursion, "r", true, "Follow subdirectories (recursion)")
@@ -89,7 +89,7 @@ func showDebugInfo() {
 		fmt.Println("------------------------")
 		fmt.Println("Target directory          :", opt.targetDirs)
 		fmt.Println("Exclude zero length files :", opt.excludeEmptyFiles)
-		fmt.Println("Exclude hidden files      :", opt.excludeHiddenFiles)
+		fmt.Println("Exclude hidden files      :", opt.excludeHidden)
 		fmt.Println("Ignore symlinks           :", opt.followSymlinks)
 		fmt.Println("Recursive search          :", opt.enableRecursion)
 		fmt.Println("Show a summary            :", opt.ShowSummary)
