@@ -3,20 +3,26 @@ package main
 import (
 	"hash"
 	"hash/crc64"
+	"sync"
 	"testing"
 )
 
 var (
-	text = []byte("something to write")
+	text             = []byte("something to write")
+	benchmarkCRCPool = &sync.Pool{
+		New: func() interface{} {
+			return crc64.New(crc64.MakeTable(crc64.ECMA))
+		},
+	}
 )
 
 func BenchmarkWithPool(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		h := crcPool.Get().(hash.Hash64)
+		h := benchmarkCRCPool.Get().(hash.Hash64)
 		h.Write(text)
 		h.Sum64()
 		h.Reset()
-		crcPool.Put(h)
+		benchmarkCRCPool.Put(h)
 	}
 }
 

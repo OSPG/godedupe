@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"godedupe/compare"
-	"godedupe/report"
 	"godedupe/filter"
+	"godedupe/report"
 )
 
 var (
@@ -27,8 +27,30 @@ func update(f os.FileInfo) {
 	}
 }
 
+func expandHomeDir(fname string) (string, error) {
+	if fname == "~" {
+		return os.UserHomeDir()
+	}
+
+	if !strings.HasPrefix(fname, "~/") {
+		return fname, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(home, fname[2:]), nil
+}
+
 func loadExcludePatterns(fname string) error {
-	file, err := os.Open(fname)
+	expandedName, err := expandHomeDir(fname)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(expandedName)
 	if err != nil {
 		if fname == defaultExcludeFile {
 			// only shown a warning, probably the user doesn't want to use it

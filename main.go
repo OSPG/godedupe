@@ -32,17 +32,17 @@ func (i *targetDirectories) Set(value string) error {
 type Options struct {
 	report.Opts
 
-	cpuprofile         string
-	targetDirs         targetDirectories
-	pattern            string
-	excludeFrom        string
-	maxDepth           int
-	showCurrentValues  bool
-	excludeEmptyFiles  bool
-	excludeHidden bool
-	enableRecursion    bool
-	followSymlinks     bool
-	quiet              bool
+	cpuprofile        string
+	targetDirs        targetDirectories
+	pattern           string
+	excludeFrom       string
+	maxDepth          int
+	showCurrentValues bool
+	excludeEmptyFiles bool
+	excludeHidden     bool
+	enableRecursion   bool
+	followSymlinks    bool
+	quiet             bool
 }
 
 var (
@@ -69,7 +69,6 @@ func init() {
 		"Show a desktop notification when the program finish")
 	flag.BoolVar(&opt.SameLine, "1", false, "Show each set of duplicated files in one line."+
 		"It implies -q (quiet) and ignores -m (show summary)")
-	flag.Parse()
 }
 
 // Header show the program name and current version
@@ -118,6 +117,8 @@ func executeCPUProfile(profile string) {
 }
 
 func main() {
+	flag.Parse()
+
 	if opt.SameLine {
 		opt.quiet = true
 	}
