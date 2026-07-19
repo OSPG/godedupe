@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,17 +13,18 @@ import (
 )
 
 var (
-	countDirs       int
-	countFiles      int
-	excludePatterns []string
+	countDirs             int
+	countFiles            int
+	excludePatterns       []string
+	parsedExcludePatterns []filter.Pattern
 )
 
-func update(f os.FileInfo) {
-	if f.IsDir() {
-		countDirs++
-	} else {
-		countFiles++
-	}
+func updateDir() {
+	countDirs++
+}
+
+func updateFile() {
+	countFiles++
 }
 
 func expandHomeDir(fname string) (string, error) {
@@ -69,73 +69,99 @@ func loadExcludePatterns(fname string) error {
 	return scanner.Err()
 }
 
-// readDir reads the files from the dir "s" recursively and checks if there are duplicated
-func readDir(s string, depth int) {
-	depth++
+func isComparableFile(file compare.File) bool {
+	matched := true
+	if opt.pattern != "" {
+		matched, _ = filepath.Match(opt.pattern, file.Info.Name())
+	}
 
-	files, err := ioutil.ReadDir(s)
+	if !matched {
+		return false
+	}
+	if opt.excludeEmptyFiles && file.Info.Size() == 0 {
+		return false
+	}
+	if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
+		return false
+	}
+
+	return true
+}
+
+// readDir reads the files from the dir "s" recursively and checks if there are duplicated
+func readDir(s string, depth int) *compare.Directory {
+	depth++
+	dir := &compare.Directory{Path: s}
+
+	files, err := os.ReadDir(s)
 	if err != nil {
 		fmt.Printf("[-] Error reading %s: %s\n", s, err)
-		return
+		return nil
 	}
 	if len(files) == 0 {
-		return
+		compare.AddDirectory(dir)
+		return dir
 	}
 
 	for _, f := range files {
 		if f.Name() == ".godedupe_ignore" {
-			return
+			return nil
 		}
 	}
 
 	for _, f := range files {
 
 		path := filepath.Join(s, f.Name())
-		file := compare.File{
-			path,
-			f,
-		}
 
 		if opt.excludeHidden && strings.HasPrefix(f.Name(), ".") {
 			continue
 		}
 
-		p := filter.ParsePatterns(excludePatterns)
-		matched, err := filter.List(p, path)
+		matched, err := filter.List(parsedExcludePatterns, path)
 		if err != nil {
 			fmt.Printf("[-] Error %s\n", err)
-			return
+			return nil
 		}
 
 		if matched {
 			continue
 		}
 
-		update(file.Info)
-
-		if !file.Info.IsDir() {
-			// Only scan for files of a given extension
-			matched := true
-			if opt.pattern != "" {
-				matched, _ = filepath.Match(opt.pattern, file.Info.Name())
+		if !f.IsDir() {
+			info, err := f.Info()
+			if err != nil {
+				fmt.Printf("[-] Error reading %s: %s\n", path, err)
+				return nil
 			}
-
-			if !matched {
-			} else if opt.excludeEmptyFiles && file.Info.Size() == 0 {
-			} else if !opt.followSymlinks && file.Info.Mode()&os.ModeSymlink != 0 {
-			} else {
+			updateFile()
+			file := compare.File{
+				Path: path,
+				Info: info,
+			}
+			if isComparableFile(file) {
 				compare.AddFile(file)
+				dir.Files = append(dir.Files, file)
 			}
 		} else if opt.enableRecursion {
+			updateDir()
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
-				readDir(path, depth)
+				childDir := readDir(path, depth)
+				if childDir != nil {
+					dir.Children = append(dir.Children, childDir)
+				}
 			}
+		} else {
+			updateDir()
 		}
 
 		if !opt.quiet {
 			fmt.Printf("[+] Analyzed: %v directories and %v files\r", countDirs, countFiles)
 		}
 	}
+
+	compare.AddDirectory(dir)
+
+	return dir
 }
 
 // Start the program with the targetDirs options. Options param is read only
@@ -151,6 +177,7 @@ func start() {
 		fmt.Printf("[-] Error reading %s: %s\n", opt.excludeFrom, err)
 		return
 	}
+	parsedExcludePatterns = filter.ParsePatterns(excludePatterns)
 
 	for _, dir := range opt.targetDirs {
 		if info, err := os.Stat(dir); err == nil && !info.IsDir() && !opt.quiet {
@@ -179,7 +206,33 @@ func start() {
 		fmt.Printf("\n[+] Stage 1 / 3 completed\n")
 	}
 
+	reportOpts := report.Opts{
+		JsonFile:         opt.JsonFile,
+		ShowSummary:      opt.ShowSummary,
+		ShowNotification: opt.ShowNotification,
+		SameLine:         opt.SameLine,
+	}
+	compare.ValidateDuplicatedDirectories(!opt.quiet)
 	compare.ValidateDuplicatedFiles(!opt.quiet)
-	reportOpts := report.Opts{opt.JsonFile, opt.ShowSummary, opt.ShowNotification, opt.SameLine}
-	report.ObtainReportData(compare.DuplicatedFiles, reportOpts).DoReport()
+	dupFiles := compare.FilterFilesCoveredByDirectories(compare.DuplicatedFiles, compare.DuplicatedDirectoriesFound)
+
+	displayOpts := reportOpts
+	displayOpts.ShowSummary = false
+
+	dirReport := report.ObtainDirectoryReportData(compare.DuplicatedDirectoriesFound, displayOpts)
+	fileReport := report.ObtainReportData(dupFiles, displayOpts)
+
+	reported := false
+	if len(compare.DuplicatedDirectoriesFound) > 0 {
+		dirReport.DoReport()
+		reported = true
+	}
+
+	if len(dupFiles) > 0 || !reported {
+		fileReport.DoReport()
+	}
+
+	if reportOpts.ShowSummary {
+		fmt.Print(report.CombinedSummary(dirReport, fileReport))
+	}
 }

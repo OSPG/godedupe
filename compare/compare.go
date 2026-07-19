@@ -1,52 +1,113 @@
 package compare
 
 import (
-	"bufio"
 	"fmt"
 	"hash"
 	"hash/crc64"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 )
 
-// File contains the path to the file and her info
+// File contains the path to the file and its info.
 type File struct {
 	Path string
 	Info os.FileInfo
 }
 
-// Duplicated maintain an array of duplicated files
-type Duplicated struct {
-	ListDuplicated []File
-}
+// Duplicated stores files with matching comparison keys.
+type Duplicated = duplicateGroup[File]
 
 var (
 	dupFileSize            = make(map[int64]Duplicated)
 	partialDuplicatedFiles = make(map[uint64]Duplicated)
-	// DuplicatedFiles store all know duplicated files
+	// DuplicatedFiles stores all known duplicated files.
 	DuplicatedFiles = make(map[uint64]Duplicated)
+	fileHashes      = make(map[fileHashKey]uint64)
+	fileHashesMu    sync.RWMutex
 )
 
-const bufferSize = 1024
+const (
+	fullHashBlocks     = 0
+	bufferSize         = 1024
+	fullHashBufferSize = 32 * 1024
+	partialHashBlocks  = 1
+)
+
+var crcTable = crc64.MakeTable(crc64.ECMA)
+
+type fileHashKey struct {
+	path      string
+	numBlocks int
+}
 
 var (
-	bytePool = &sync.Pool{
+	partialHashBytePool = &sync.Pool{
 		New: func() interface{} {
 			return make([]byte, bufferSize)
 		},
 	}
+	fullHashBytePool = &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, fullHashBufferSize)
+		},
+	}
 	crcPool = &sync.Pool{
 		New: func() interface{} {
-			return crc64.New(crc64.MakeTable(crc64.ECMA))
+			return crc64.New(crcTable)
 		},
 	}
 )
 
-// computeHash calculates the hash for the current file
-// if bufferNumber is not zero then we will only hash the first bufferNumber
-// blocks (bufferSize)
-func computeHash(filename string, bufNumber int) (uint64, error) {
+func cachedFileHash(key fileHashKey) (uint64, bool) {
+	fileHashesMu.RLock()
+	hash, ok := fileHashes[key]
+	fileHashesMu.RUnlock()
+	return hash, ok
+}
+
+func storeFileHash(key fileHashKey, hash uint64) {
+	fileHashesMu.Lock()
+	fileHashes[key] = hash
+	fileHashesMu.Unlock()
+}
+
+func storeSmallFileHashes(path string, hash uint64) {
+	fileHashesMu.Lock()
+	fileHashes[fileHashKey{path: path, numBlocks: partialHashBlocks}] = hash
+	fileHashes[fileHashKey{path: path, numBlocks: fullHashBlocks}] = hash
+	fileHashesMu.Unlock()
+}
+
+func cachedSmallFileHash(file File) (uint64, bool) {
+	partialKey := fileHashKey{path: file.Path, numBlocks: partialHashBlocks}
+	fullKey := fileHashKey{path: file.Path, numBlocks: fullHashBlocks}
+
+	fileHashesMu.RLock()
+	partialHash, hasPartialHash := fileHashes[partialKey]
+	fullHash, hasFullHash := fileHashes[fullKey]
+	fileHashesMu.RUnlock()
+
+	switch {
+	case hasPartialHash:
+		storeFileHash(fullKey, partialHash)
+		return partialHash, true
+	case hasFullHash:
+		storeFileHash(partialKey, fullHash)
+		return fullHash, true
+	default:
+		return 0, false
+	}
+}
+
+// computeHash calculates either a full file hash or the first numBlocks blocks.
+func computeHash(filename string, numBlocks int) (uint64, error) {
+	key := fileHashKey{path: filename, numBlocks: numBlocks}
+	if hash, ok := cachedFileHash(key); ok {
+		return hash, nil
+	}
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return 0, err
@@ -54,109 +115,172 @@ func computeHash(filename string, bufNumber int) (uint64, error) {
 	defer file.Close()
 
 	hash := crcPool.Get().(hash.Hash64)
-	buf, reader := bytePool.Get().([]byte), bufio.NewReader(file)
-	if bufNumber == 0 {
-		for {
-			n, err := reader.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return 0, err
-			}
+	var buf []byte
+	fullHash := numBlocks == fullHashBlocks
+	if fullHash {
+		buf = fullHashBytePool.Get().([]byte)
+		defer fullHashBytePool.Put(buf)
+	} else {
+		buf = partialHashBytePool.Get().([]byte)
+		defer partialHashBytePool.Put(buf)
+	}
+	defer func() {
+		hash.Reset()
+		crcPool.Put(hash)
+	}()
 
+	for blocksRead := 0; fullHash || blocksRead < numBlocks; blocksRead++ {
+		n, err := file.Read(buf)
+		if n > 0 {
 			hash.Write(buf[:n])
 		}
-	} else {
-		for ; bufNumber > 0; bufNumber-- {
-			n, err := reader.Read(buf)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return 0, err
+		if err != nil {
+			if err == io.EOF {
+				break
 			}
-
-			hash.Write(buf[:n])
+			return 0, err
 		}
 	}
-	bytePool.Put(buf)
+
 	s := hash.Sum64()
-	hash.Reset()
-	crcPool.Put(hash)
+	storeFileHash(key, s)
 
 	return s, nil
 }
 
-// compareFile checks if the hash of the "path" file are in the map, in that
-// case, append it to the ListDuplicated otherwise creates a new Duplicated
-// for storing future duplicates of the current file
-func compareFile(file File, numBlocks int, dupMap map[uint64]Duplicated) {
+func computeFileHash(file File, numBlocks int) (uint64, error) {
+	if file.Info.Size() <= bufferSize {
+		if hash, ok := cachedSmallFileHash(file); ok {
+			return hash, nil
+		}
+	}
+
 	hash, err := computeHash(file.Path, numBlocks)
 	if err != nil {
-		return
+		return 0, err
 	}
 
-	//Check if exist a duplicated of the current file
-	if val, ok := dupMap[hash]; ok {
-		val.ListDuplicated = append(val.ListDuplicated, file)
-		dupMap[hash] = val
-	} else {
-		var fileSlice []File
-		fileSlice = append(fileSlice, file)
-		d := Duplicated{
-			fileSlice,
-		}
+	if file.Info.Size() <= bufferSize {
+		storeSmallFileHashes(file.Path, hash)
+	}
 
-		dupMap[hash] = d
+	return hash, nil
+}
+
+type fileHashResult struct {
+	file File
+	hash uint64
+	ok   bool
+}
+
+func hashWorkerCount(jobCount int) int {
+	workers := runtime.GOMAXPROCS(0)
+	if workers > jobCount {
+		workers = jobCount
+	}
+	if workers < 1 {
+		workers = 1
+	}
+
+	return workers
+}
+
+func hashFiles(files []File, numBlocks int) []fileHashResult {
+	results := make([]fileHashResult, len(files))
+	if len(files) == 0 {
+		return results
+	}
+
+	workers := hashWorkerCount(len(files))
+	if workers == 1 {
+		for i := range files {
+			results[i] = hashFile(files[i], numBlocks)
+		}
+		return results
+	}
+
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				results[index] = hashFile(files[index], numBlocks)
+			}
+		}()
+	}
+
+	for i := range files {
+		jobs <- i
+	}
+	close(jobs)
+
+	wg.Wait()
+
+	return results
+}
+
+func hashFile(file File, numBlocks int) fileHashResult {
+	hash, err := computeFileHash(file, numBlocks)
+	if err != nil {
+		return fileHashResult{}
+	}
+
+	return fileHashResult{file: file, hash: hash, ok: true}
+}
+
+func hashFilesIntoCache(files []File, numBlocks int) {
+	hashFiles(files, numBlocks)
+}
+
+func compareFiles(files []File, numBlocks int, dupMap map[uint64]Duplicated) {
+	for _, result := range hashFiles(files, numBlocks) {
+		if result.ok {
+			addToGroup(dupMap, result.hash, result.file)
+		}
 	}
 }
 
-func cleanUnmarried(dupMap map[uint64]Duplicated) {
-	for k, v := range dupMap {
-		dups := len(v.ListDuplicated) - 1
-		if dups == 0 {
-			delete(dupMap, k)
+func splitFilesForPartialCompare(files []File) (fullHashFiles []File, partialHashFiles []File) {
+	for _, file := range files {
+		if file.Info.Size() <= bufferSize {
+			fullHashFiles = append(fullHashFiles, file)
+		} else {
+			partialHashFiles = append(partialHashFiles, file)
 		}
+	}
+	return fullHashFiles, partialHashFiles
+}
+
+func reportStageProgress(verbose bool, done int, total int) {
+	if verbose {
+		fmt.Printf("[+] %d / %d done\r", done, total)
 	}
 }
 
-// AddFile append files to the dupFileSize map to be compared later
+func reportCompletedGroups(verbose bool, total int) {
+	for i := 1; i <= total; i++ {
+		reportStageProgress(verbose, i, total)
+	}
+}
+
+// AddFile appends files to the size groups to be compared later.
 func AddFile(file File) {
-	size := file.Info.Size()
-	if val, ok := dupFileSize[size]; ok {
-		val.ListDuplicated = append(val.ListDuplicated, file)
-		dupFileSize[size] = val
-	} else {
-		var fileSlice []File
-		fileSlice = append(fileSlice, file)
-		d := Duplicated{
-			fileSlice,
-		}
-		dupFileSize[size] = d
-	}
+	addToGroup(dupFileSize, file.Info.Size(), file)
 }
 
-// ValidateDuplicatedFiles do the full hash of the duplicatedFiles to
-// avoid false positives
+// ValidateDuplicatedFiles validates duplicate candidates with partial and full file hashes.
 func ValidateDuplicatedFiles(verbose bool) {
-	doPartialCompare(verbose)
-	doFullCompare(verbose)
+	doPartialFileCompare(verbose)
+	doFullFileCompare(verbose)
 }
 
-// make the full file comparison
-func doFullCompare(verbose bool) {
-	filesBefore := 0
-	for _, v := range partialDuplicatedFiles {
-		filesBefore += len(v.ListDuplicated)
-	}
-
-	cleanUnmarried(partialDuplicatedFiles)
-
-	filesAfter := 0
-	for _, v := range partialDuplicatedFiles {
-		filesAfter += len(v.ListDuplicated)
-	}
+func doFullFileCompare(verbose bool) {
+	filesBefore := countItemsInGroups(partialDuplicatedFiles)
+	removeSingletonGroups(partialDuplicatedFiles)
+	filesAfter := countItemsInGroups(partialDuplicatedFiles)
 
 	if verbose {
 		fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
@@ -164,66 +288,30 @@ func doFullCompare(verbose bool) {
 		fmt.Printf("[+] Starting stage 3 / 3.\n")
 	}
 
-	i := 0
-	for _, v := range partialDuplicatedFiles {
-		for _, f := range v.ListDuplicated {
-			compareFile(f, 0, DuplicatedFiles)
-		}
-		if verbose {
-			i++
-			fmt.Printf("[+] %d / %d done\r",
-				i, len(partialDuplicatedFiles))
-		}
-	}
-	cleanUnmarried(DuplicatedFiles)
+	files := collectItemsInGroups(partialDuplicatedFiles)
+	reportCompletedGroups(verbose, len(partialDuplicatedFiles))
+	compareFiles(files, fullHashBlocks, DuplicatedFiles)
+	removeSingletonGroups(DuplicatedFiles)
 
 	if verbose {
 		fmt.Printf("[+] Stage 3 / 3 completed.\n\n")
 	}
 }
 
-// make a partial file comparison
-func doPartialCompare(verbose bool) {
-	filesBefore := 0
-	for _, v := range dupFileSize {
-		filesBefore += len(v.ListDuplicated)
-	}
-
-	for k, v := range dupFileSize {
-		dups := len(v.ListDuplicated) - 1
-		if dups == 0 {
-			delete(dupFileSize, k)
-		}
-	}
-
-	filesAfter := 0
-	for _, v := range dupFileSize {
-		filesAfter += len(v.ListDuplicated)
-	}
+func doPartialFileCompare(verbose bool) {
+	filesBefore := countItemsInGroups(dupFileSize)
+	removeSingletonGroups(dupFileSize)
+	filesAfter := countItemsInGroups(dupFileSize)
 	if verbose {
 		fmt.Printf("[+] From %d files, %d need to be rechecked (%d sets).\n",
 			filesBefore, filesAfter, len(dupFileSize))
 		fmt.Printf("[+] Starting stage 2 / 3.\n")
 	}
 
-	i := 0
-	for _, v := range dupFileSize {
-		for _, f := range v.ListDuplicated {
-			// If file size is less than bufferSize the partial
-			// comparison will hash the entire file so we can skip this step
-			// and put the result directly on the final map
-			if f.Info.Size() <= bufferSize {
-				compareFile(f, 0, DuplicatedFiles)
-			} else {
-				compareFile(f, 1, partialDuplicatedFiles)
-			}
-		}
-		if verbose {
-			i++
-			fmt.Printf("[+] %d / %d done\r",
-				i, len(dupFileSize))
-		}
-	}
+	fullHashFiles, partialHashFiles := splitFilesForPartialCompare(collectItemsInGroups(dupFileSize))
+	reportCompletedGroups(verbose, len(dupFileSize))
+	compareFiles(fullHashFiles, fullHashBlocks, DuplicatedFiles)
+	compareFiles(partialHashFiles, partialHashBlocks, partialDuplicatedFiles)
 	if verbose {
 		fmt.Printf("\n[+] Stage 2 / 3 completed.\n")
 	}
