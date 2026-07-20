@@ -7,6 +7,9 @@ import (
 )
 
 func resetDirectoryCompareState() {
+	dupFileSize = make(map[int64]Duplicated)
+	partialDuplicatedFiles = make(map[uint64]Duplicated)
+	DuplicatedFiles = make(map[uint64]Duplicated)
 	dupDirFileCount = make(map[int64]DuplicatedDirectories)
 	structureDuplicatedDirectories = make(map[uint64]DuplicatedDirectories)
 	partialDuplicatedDirectories = make(map[uint64]DuplicatedDirectories)
@@ -27,12 +30,17 @@ func writeTestFile(t *testing.T, path string, content string) {
 func testDirectory(t *testing.T, path string) *Directory {
 	t.Helper()
 
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat test directory: %v", err)
+	}
+
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		t.Fatalf("read test directory: %v", err)
 	}
 
-	dir := &Directory{Path: path}
+	dir := &Directory{Path: path, Info: info}
 	for _, entry := range entries {
 		entryPath := filepath.Join(path, entry.Name())
 		if entry.IsDir() {
@@ -130,7 +138,7 @@ func TestFilterFilesCoveredByDirectories(t *testing.T) {
 		},
 	}
 
-	filtered := FilterFilesCoveredByDirectories(dupFiles, dupDirs)
+	filtered := FilterFilesCoveredByDirectories(dupFiles, dupDirs, false)
 
 	if len(filtered) != 1 {
 		t.Fatalf("filtered duplicated files = %d sets, want 1", len(filtered))
@@ -142,6 +150,141 @@ func TestFilterFilesCoveredByDirectories(t *testing.T) {
 	}
 	if len(files.ListDuplicated) != 2 {
 		t.Fatalf("uncovered file set size = %d, want 2", len(files.ListDuplicated))
+	}
+}
+
+func TestFilterFilesCoveredByDirectoriesKeepsFilesWithoutDuplicatedDirectories(t *testing.T) {
+	root := t.TempDir()
+	first := filepath.Join(root, "first.txt")
+	second := filepath.Join(root, "second.txt")
+
+	writeTestFile(t, first, "same")
+	writeTestFile(t, second, "same")
+
+	dupFiles := map[uint64]Duplicated{
+		1: {ListDuplicated: []File{testFile(t, first), testFile(t, second)}},
+	}
+
+	filtered := FilterFilesCoveredByDirectories(dupFiles, nil, false)
+
+	if len(filtered) != 1 {
+		t.Fatalf("filtered duplicated files = %d sets, want 1", len(filtered))
+	}
+}
+
+func TestPruneFileCandidatesCoveredByDirectories(t *testing.T) {
+	resetDirectoryCompareState()
+	root := t.TempDir()
+
+	coveredA := filepath.Join(root, "a", "sub", "covered-a.txt")
+	coveredB := filepath.Join(root, "b", "sub", "covered-b.txt")
+	uncoveredA := filepath.Join(root, "a", "same.txt")
+	uncoveredB := filepath.Join(root, "b", "same.txt")
+
+	writeTestFile(t, coveredA, "same-size")
+	writeTestFile(t, coveredB, "same-size")
+	writeTestFile(t, uncoveredA, "same-size")
+	writeTestFile(t, uncoveredB, "same-size")
+
+	dupFileSize = map[int64]Duplicated{
+		1: {
+			ListDuplicated: []File{
+				testFile(t, coveredA),
+				testFile(t, coveredB),
+				testFile(t, uncoveredA),
+				testFile(t, uncoveredB),
+			},
+		},
+		2: {
+			ListDuplicated: []File{
+				testFile(t, coveredA),
+				testFile(t, coveredB),
+			},
+		},
+	}
+
+	PruneFileCandidatesCoveredByDirectories(map[uint64]DuplicatedDirectories{
+		3: {
+			ListDuplicated: []*Directory{
+				{Path: filepath.Join(root, "a", "sub")},
+				{Path: filepath.Join(root, "b", "sub")},
+			},
+		},
+	})
+
+	files := dupFileSize[1].ListDuplicated
+	if len(files) != 2 {
+		t.Fatalf("remaining candidates = %d, want 2", len(files))
+	}
+	remaining := map[string]bool{}
+	for _, file := range files {
+		remaining[file.Path] = true
+	}
+	if !remaining[uncoveredA] || !remaining[uncoveredB] {
+		t.Fatalf("remaining candidates = %#v, want uncovered files", remaining)
+	}
+	if _, ok := dupFileSize[2]; ok {
+		t.Fatal("covered-only candidate group was not removed")
+	}
+}
+
+func TestDuplicatedDirectoryIndexContainsOnlyDescendants(t *testing.T) {
+	root := t.TempDir()
+	index := newDuplicatedDirectoryIndex(map[uint64]DuplicatedDirectories{
+		1: {
+			ListDuplicated: []*Directory{
+				{Path: filepath.Join(root, "a")},
+			},
+		},
+	})
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: filepath.Join(root, "a", "file.txt"), want: true},
+		{path: filepath.Join(root, "a", "sub", "file.txt"), want: true},
+		{path: filepath.Join(root, "a"), want: false},
+		{path: filepath.Join(root, "a2", "file.txt"), want: false},
+		{path: filepath.Join(root, "ab", "file.txt"), want: false},
+		{path: root, want: false},
+	}
+
+	for _, tt := range tests {
+		if got := index.containsParentOf(tt.path); got != tt.want {
+			t.Fatalf("containsParentOf(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestRemoveNestedDuplicatedDirectoriesUsesPathIndex(t *testing.T) {
+	resetDirectoryCompareState()
+	root := t.TempDir()
+	parentHash := uint64(1)
+	childHash := uint64(2)
+
+	DuplicatedDirectoriesFound = map[uint64]DuplicatedDirectories{
+		parentHash: {
+			ListDuplicated: []*Directory{
+				{Path: filepath.Join(root, "a")},
+				{Path: filepath.Join(root, "b")},
+			},
+		},
+		childHash: {
+			ListDuplicated: []*Directory{
+				{Path: filepath.Join(root, "a", "sub")},
+				{Path: filepath.Join(root, "b", "sub")},
+			},
+		},
+	}
+
+	removeNestedDuplicatedDirectories()
+
+	if _, ok := DuplicatedDirectoriesFound[parentHash]; !ok {
+		t.Fatal("parent directory duplicate set was removed")
+	}
+	if _, ok := DuplicatedDirectoriesFound[childHash]; ok {
+		t.Fatal("nested directory duplicate set was kept")
 	}
 }
 
@@ -159,5 +302,52 @@ func TestDirectoryHashIncludesRelativePaths(t *testing.T) {
 
 	if len(DuplicatedDirectoriesFound) != 0 {
 		t.Fatalf("found %d duplicated directory sets, want 0", len(DuplicatedDirectoriesFound))
+	}
+}
+
+func TestDirectoryHashIncludesEmptyChildDirectories(t *testing.T) {
+	resetDirectoryCompareState()
+
+	root := t.TempDir()
+	left := filepath.Join(root, "a", "left")
+	right := filepath.Join(root, "b", "right")
+	if err := os.MkdirAll(left, 0755); err != nil {
+		t.Fatalf("create left child: %v", err)
+	}
+	if err := os.MkdirAll(right, 0755); err != nil {
+		t.Fatalf("create right child: %v", err)
+	}
+
+	hashA, err := computeDirectoryHash(testDirectory(t, filepath.Join(root, "a")), fullHashBlocks)
+	if err != nil {
+		t.Fatalf("compute a directory hash: %v", err)
+	}
+	hashB, err := computeDirectoryHash(testDirectory(t, filepath.Join(root, "b")), fullHashBlocks)
+	if err != nil {
+		t.Fatalf("compute b directory hash: %v", err)
+	}
+
+	if hashA == hashB {
+		t.Fatalf("directory hashes matched for different empty child trees: %x", hashA)
+	}
+}
+
+func TestValidateDuplicatedDirectoriesIgnoresTreesWithoutComparableFiles(t *testing.T) {
+	resetDirectoryCompareState()
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "a", "sub"), 0755); err != nil {
+		t.Fatalf("create a/sub: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "b", "sub"), 0755); err != nil {
+		t.Fatalf("create b/sub: %v", err)
+	}
+
+	AddDirectory(testDirectory(t, filepath.Join(root, "a")))
+	AddDirectory(testDirectory(t, filepath.Join(root, "b")))
+	ValidateDuplicatedDirectories(false)
+
+	if len(DuplicatedDirectoriesFound) != 0 {
+		t.Fatalf("found %d duplicated empty directory-tree sets, want 0", len(DuplicatedDirectoriesFound))
 	}
 }

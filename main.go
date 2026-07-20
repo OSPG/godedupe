@@ -42,6 +42,8 @@ type Options struct {
 	excludeHidden     bool
 	enableRecursion   bool
 	followSymlinks    bool
+	directoryCache    bool
+	directoriesOnly   bool
 	quiet             bool
 }
 
@@ -63,6 +65,9 @@ func init() {
 		"Show the current values of the program options")
 	flag.BoolVar(&opt.enableRecursion, "r", true, "Follow subdirectories (recursion)")
 	flag.BoolVar(&opt.followSymlinks, "s", false, "Follow symlinks")
+	flag.BoolVar(&opt.directoryCache, "directory-cache", true,
+		"Enable persistent SQLite hash cache for directories and large files. Use --directory-cache=false to disable it")
+	flag.BoolVar(&opt.directoriesOnly, "directories-only", false, "Only show duplicated directories")
 	flag.BoolVar(&opt.ShowSummary, "m", false, "Show a summary")
 	flag.BoolVar(&opt.quiet, "q", false, "Don't show progress info")
 	flag.BoolVar(&opt.ShowNotification, "show-notification", false,
@@ -91,6 +96,8 @@ func showDebugInfo() {
 		fmt.Println("Exclude hidden files      :", opt.excludeHidden)
 		fmt.Println("Ignore symlinks           :", opt.followSymlinks)
 		fmt.Println("Recursive search          :", opt.enableRecursion)
+		fmt.Println("Directory cache           :", opt.directoryCache)
+		fmt.Println("Directories only          :", opt.directoriesOnly)
 		fmt.Println("Show a summary            :", opt.ShowSummary)
 		fmt.Println("Quiet                     :", opt.quiet)
 		fmt.Println("Show notification         :", opt.ShowNotification)
@@ -108,6 +115,21 @@ func trackTime(now time.Time) {
 	fmt.Printf("[+] Program terminated in %v\n", time.Since(now))
 }
 
+func stdoutIsTerminal() bool {
+	info, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func configureOutputMode() {
+	if opt.SameLine || !stdoutIsTerminal() {
+		opt.quiet = true
+	}
+}
+
 func executeCPUProfile(profile string) {
 	f, err := os.Create(profile)
 	if err != nil {
@@ -119,9 +141,7 @@ func executeCPUProfile(profile string) {
 func main() {
 	flag.Parse()
 
-	if opt.SameLine {
-		opt.quiet = true
-	}
+	configureOutputMode()
 
 	showDebugInfo()
 	if opt.cpuprofile != "" {
@@ -130,5 +150,7 @@ func main() {
 	}
 	st := time.Now()
 	start()
-	trackTime(st)
+	if !opt.quiet {
+		trackTime(st)
+	}
 }

@@ -4,20 +4,25 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash"
+	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 // Directory contains a comparable directory tree.
 type Directory struct {
 	Path     string
+	Info     os.FileInfo
 	Files    []File
 	Children []*Directory
+	// Incomplete means the tree has child directories that were not scanned.
+	Incomplete bool
 
 	fileCount     int64
 	size          int64
 	structureHash uint64
+	metadataHash  uint64
+	cacheIdentity directoryIdentity
 	contentHashes map[int]uint64
 	finalized     bool
 }
@@ -54,6 +59,9 @@ func AddDirectory(dir *Directory) {
 	}
 
 	finalizeDirectory(dir)
+	if dir.Incomplete || dir.fileCount == 0 {
+		return
+	}
 	addToGroup(dupDirFileCount, dir.fileCount, dir)
 }
 
@@ -69,34 +77,49 @@ func finalizeDirectory(dir *Directory) {
 		return filepath.Base(dir.Children[i].Path) < filepath.Base(dir.Children[j].Path)
 	})
 
-	hash := crcPool.Get().(hash.Hash64)
+	structureHash := crcPool.Get().(hash.Hash64)
+	metadataHash := crcPool.Get().(hash.Hash64)
 	defer func() {
-		hash.Reset()
-		crcPool.Put(hash)
+		structureHash.Reset()
+		crcPool.Put(structureHash)
+		metadataHash.Reset()
+		crcPool.Put(metadataHash)
 	}()
+
+	dir.cacheIdentity = newDirectoryIdentity(dir.Path, dir.Info)
+	writeEntryMetadata(metadataHash, "S", dir.Info, dir.cacheIdentity)
 
 	for _, file := range dir.Files {
 		dir.fileCount++
 		dir.size += file.Info.Size()
-		hash.Write(fileEntryMarker)
-		writeHashString(hash, file.Info.Name())
-		writeHashUint64(hash, uint64(file.Info.Size()))
+		structureHash.Write(fileEntryMarker)
+		writeHashString(structureHash, file.Info.Name())
+		writeHashUint64(structureHash, uint64(file.Info.Size()))
+
+		metadataHash.Write(fileEntryMarker)
+		writeHashString(metadataHash, file.Info.Name())
+		writeHashUint64(metadataHash, uint64(file.Info.Size()))
+		writeEntryMetadata(metadataHash, "", file.Info, newFileIdentity(file.Info))
 	}
 
 	for _, child := range dir.Children {
 		finalizeDirectory(child)
 		dir.fileCount += child.fileCount
 		dir.size += child.size
-		if child.fileCount == 0 {
-			continue
-		}
-		hash.Write(directoryEntryMarker)
-		writeHashString(hash, filepath.Base(child.Path))
-		writeHashUint64(hash, uint64(child.fileCount))
-		writeHashUint64(hash, child.structureHash)
+		structureHash.Write(directoryEntryMarker)
+		writeHashString(structureHash, filepath.Base(child.Path))
+		writeHashUint64(structureHash, uint64(child.fileCount))
+		writeHashUint64(structureHash, child.structureHash)
+
+		metadataHash.Write(directoryEntryMarker)
+		writeHashString(metadataHash, filepath.Base(child.Path))
+		writeHashUint64(metadataHash, uint64(child.fileCount))
+		writeHashUint64(metadataHash, child.structureHash)
+		writeHashUint64(metadataHash, child.metadataHash)
 	}
 
-	dir.structureHash = hash.Sum64()
+	dir.structureHash = structureHash.Sum64()
+	dir.metadataHash = metadataHash.Sum64()
 	dir.finalized = true
 }
 
@@ -109,13 +132,24 @@ func ValidateDuplicatedDirectories(verbose bool) {
 
 // FilterFilesCoveredByDirectories removes duplicated file entries that are
 // already represented by reported duplicated directories.
-func FilterFilesCoveredByDirectories(dupFiles map[uint64]Duplicated, dupDirs map[uint64]DuplicatedDirectories) map[uint64]Duplicated {
+func FilterFilesCoveredByDirectories(dupFiles map[uint64]Duplicated, dupDirs map[uint64]DuplicatedDirectories, _ bool) map[uint64]Duplicated {
 	filtered := make(map[uint64]Duplicated)
+	if len(dupFiles) == 0 {
+		return filtered
+	}
+	if len(dupDirs) == 0 {
+		return dupFiles
+	}
+
+	coveredDirectories := newDuplicatedDirectoryIndex(dupDirs)
+	if len(coveredDirectories) == 0 {
+		return dupFiles
+	}
 
 	for fileHash, duplicated := range dupFiles {
 		var files []File
 		for _, file := range duplicated.ListDuplicated {
-			if !pathInDuplicatedDirectories(file.Path, dupDirs) {
+			if !coveredDirectories.containsParentOf(file.Path) {
 				files = append(files, file)
 			}
 		}
@@ -128,16 +162,67 @@ func FilterFilesCoveredByDirectories(dupFiles map[uint64]Duplicated, dupDirs map
 	return filtered
 }
 
-func pathInDuplicatedDirectories(path string, dupDirs map[uint64]DuplicatedDirectories) bool {
+// PruneFileCandidatesCoveredByDirectories removes file candidates that are
+// already covered by duplicated directories before file hashing starts.
+func PruneFileCandidatesCoveredByDirectories(dupDirs map[uint64]DuplicatedDirectories) {
+	if len(dupFileSize) == 0 || len(dupDirs) == 0 {
+		return
+	}
+
+	coveredDirectories := newDuplicatedDirectoryIndex(dupDirs)
+	if len(coveredDirectories) == 0 {
+		return
+	}
+
+	for size, duplicated := range dupFileSize {
+		files := duplicated.ListDuplicated[:0]
+		for _, file := range duplicated.ListDuplicated {
+			if !coveredDirectories.containsParentOf(file.Path) {
+				files = append(files, file)
+			}
+		}
+
+		if len(files) > 1 {
+			dupFileSize[size] = Duplicated{ListDuplicated: files}
+		} else {
+			delete(dupFileSize, size)
+		}
+	}
+}
+
+type duplicatedDirectoryIndex map[string]struct{}
+
+func newDuplicatedDirectoryIndex(dupDirs map[uint64]DuplicatedDirectories) duplicatedDirectoryIndex {
+	index := make(duplicatedDirectoryIndex)
 	for _, duplicated := range dupDirs {
 		for _, dir := range duplicated.ListDuplicated {
-			if isChildPath(dir.Path, path) {
-				return true
+			if dir == nil || dir.Path == "" {
+				continue
 			}
+			index[filepath.Clean(dir.Path)] = struct{}{}
 		}
 	}
 
-	return false
+	return index
+}
+
+func (index duplicatedDirectoryIndex) containsParentOf(path string) bool {
+	if len(index) == 0 || path == "" {
+		return false
+	}
+
+	dir := filepath.Clean(filepath.Dir(path))
+	for {
+		if _, ok := index[dir]; ok {
+			return true
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
 }
 
 func compareDirectoryStructure(dir *Directory, dupMap map[uint64]DuplicatedDirectories) {
@@ -156,12 +241,12 @@ func compareDirectory(dir *Directory, numBlocks int, dupMap map[uint64]Duplicate
 
 func computeDirectoryHash(dir *Directory, numBlocks int) (uint64, error) {
 	finalizeDirectory(dir)
+	if contentHash, ok := cachedDirectoryContentHash(dir, numBlocks); ok {
+		return contentHash, nil
+	}
 
 	if dir.contentHashes == nil {
 		dir.contentHashes = make(map[int]uint64)
-	}
-	if contentHash, ok := dir.contentHashes[numBlocks]; ok {
-		return contentHash, nil
 	}
 
 	hash := crcPool.Get().(hash.Hash64)
@@ -183,10 +268,6 @@ func computeDirectoryHash(dir *Directory, numBlocks int) (uint64, error) {
 	}
 
 	for _, child := range dir.Children {
-		if child.fileCount == 0 {
-			continue
-		}
-
 		childHash, err := computeDirectoryHash(child, numBlocks)
 		if err != nil {
 			return 0, err
@@ -200,32 +281,87 @@ func computeDirectoryHash(dir *Directory, numBlocks int) (uint64, error) {
 
 	contentHash := hash.Sum64()
 	dir.contentHashes[numBlocks] = contentHash
+	storeDirectoryHash(dir, numBlocks, contentHash)
 	return contentHash, nil
 }
 
-func precomputeDirectoryFileHashes(dupDirs map[uint64]DuplicatedDirectories, numBlocks int) {
-	files := collectDirectoryFiles(dupDirs)
-	hashFilesIntoCache(files, numBlocks)
+type directoryHashGroup struct {
+	dirs []*Directory
 }
 
-func collectDirectoryFiles(dupDirs map[uint64]DuplicatedDirectories) []File {
-	seen := make(map[string]struct{})
-	var files []File
-
+func directoryHashGroups(dupDirs map[uint64]DuplicatedDirectories) []directoryHashGroup {
+	groups := make([]directoryHashGroup, 0, len(dupDirs))
 	for _, duplicated := range dupDirs {
-		for _, dir := range duplicated.ListDuplicated {
-			files = appendDirectoryFiles(files, dir, seen)
-		}
+		groups = append(groups, directoryHashGroup{
+			dirs: duplicated.ListDuplicated,
+		})
 	}
 
+	return groups
+}
+
+func collectFilesForUncachedDirectories(dirs []*Directory, numBlocks int) []File {
+	seen := make(map[string]struct{})
+	var files []File
+	for _, dir := range dirs {
+		files = appendUncachedDirectoryFiles(files, dir, numBlocks, seen)
+	}
 	return files
 }
 
-func appendDirectoryFiles(files []File, dir *Directory, seen map[string]struct{}) []File {
+func compareDirectoryGroups(dupDirs map[uint64]DuplicatedDirectories, numBlocks int, dupMap map[uint64]DuplicatedDirectories, verbose bool) {
+	dirGroups := directoryHashGroups(dupDirs)
+	progress := newSetProgress(verbose, len(dirGroups))
+	var missingFileGroups []fileHashGroup
+	var missingGroupIndexes []int
+
+	for groupIndex, group := range dirGroups {
+		if compareCachedDirectoryGroup(group.dirs, numBlocks, dupMap) {
+			progress.doneGroup()
+			continue
+		}
+
+		files := collectFilesForUncachedDirectories(group.dirs, numBlocks)
+		missingFileGroups = append(missingFileGroups, fileHashGroup{
+			files:     files,
+			numBlocks: numBlocks,
+		})
+		missingGroupIndexes = append(missingGroupIndexes, groupIndex)
+	}
+
+	hashFileGroupsWithProgress(missingFileGroups, func(missingIndex int, _ []fileHashResult) {
+		groupIndex := missingGroupIndexes[missingIndex]
+		for _, dir := range dirGroups[groupIndex].dirs {
+			compareDirectory(dir, numBlocks, dupMap)
+		}
+	}, progress.doneGroup)
+}
+
+func compareCachedDirectoryGroup(dirs []*Directory, numBlocks int, dupMap map[uint64]DuplicatedDirectories) bool {
+	hashes := make([]uint64, len(dirs))
+	for i, dir := range dirs {
+		hash, ok := cachedDirectoryContentHash(dir, numBlocks)
+		if !ok {
+			return false
+		}
+		hashes[i] = hash
+	}
+
+	for i, dir := range dirs {
+		addToGroup(dupMap, hashes[i], dir)
+	}
+
+	return true
+}
+
+func appendUncachedDirectoryFiles(files []File, dir *Directory, numBlocks int, seen map[string]struct{}) []File {
 	if dir == nil {
 		return files
 	}
 	finalizeDirectory(dir)
+	if _, ok := cachedDirectoryContentHash(dir, numBlocks); ok {
+		return files
+	}
 
 	for _, file := range dir.Files {
 		if _, ok := seen[file.Path]; ok {
@@ -236,7 +372,7 @@ func appendDirectoryFiles(files []File, dir *Directory, seen map[string]struct{}
 	}
 
 	for _, child := range dir.Children {
-		files = appendDirectoryFiles(files, child, seen)
+		files = appendUncachedDirectoryFiles(files, child, numBlocks, seen)
 	}
 
 	return files
@@ -251,6 +387,10 @@ func writeHashUint64(hash hash.Hash64, value uint64) {
 	var buf [8]byte
 	binary.LittleEndian.PutUint64(buf[:], value)
 	hash.Write(buf[:])
+}
+
+func writeHashInt64(hash hash.Hash64, value int64) {
+	writeHashUint64(hash, uint64(value))
 }
 
 func doPartialDirectoryCompare(verbose bool) {
@@ -272,19 +412,9 @@ func doPartialDirectoryCompare(verbose bool) {
 		fmt.Printf("[+] Starting directory stage 2 / 3.\n")
 	}
 
-	i := 0
-	precomputeDirectoryFileHashes(structureDuplicatedDirectories, partialHashBlocks)
-	for _, v := range structureDuplicatedDirectories {
-		for _, dir := range v.ListDuplicated {
-			compareDirectory(dir, partialHashBlocks, partialDuplicatedDirectories)
-		}
-		i++
-		reportStageProgress(verbose, i, len(structureDuplicatedDirectories))
-	}
+	compareDirectoryGroups(structureDuplicatedDirectories, partialHashBlocks, partialDuplicatedDirectories, verbose)
 
-	if verbose {
-		fmt.Printf("\n[+] Directory stage 2 / 3 completed.\n")
-	}
+	reportStageCompletion(verbose, len(structureDuplicatedDirectories) > 0, "[+] Directory stage 2 / 3 completed.")
 }
 
 func doFullDirectoryCompare(verbose bool) {
@@ -298,64 +428,90 @@ func doFullDirectoryCompare(verbose bool) {
 		fmt.Printf("[+] Starting directory stage 3 / 3.\n")
 	}
 
-	i := 0
-	precomputeDirectoryFileHashes(partialDuplicatedDirectories, fullHashBlocks)
-	for _, v := range partialDuplicatedDirectories {
-		for _, dir := range v.ListDuplicated {
-			compareDirectory(dir, fullHashBlocks, DuplicatedDirectoriesFound)
-		}
-		i++
-		reportStageProgress(verbose, i, len(partialDuplicatedDirectories))
-	}
+	compareDirectoryGroups(partialDuplicatedDirectories, fullHashBlocks, DuplicatedDirectoriesFound, verbose)
 	removeSingletonGroups(DuplicatedDirectoriesFound)
 	removeNestedDuplicatedDirectories()
 
-	if verbose {
-		fmt.Printf("[+] Directory stage 3 / 3 completed.\n\n")
-	}
+	reportStageCompletion(
+		verbose,
+		len(partialDuplicatedDirectories) > 0,
+		"[+] Directory stage 3 / 3 completed.",
+	)
 }
 
 func removeNestedDuplicatedDirectories() {
+	if len(DuplicatedDirectoriesFound) < 2 {
+		return
+	}
+
+	pathIndex := newDuplicatedDirectoryPathIndex(DuplicatedDirectoriesFound)
 	for candidateHash, candidate := range DuplicatedDirectoriesFound {
-		for parentHash, parent := range DuplicatedDirectoriesFound {
-			if parentHash == candidateHash {
+		if duplicatedDirectoryGroupIsNested(candidateHash, candidate.ListDuplicated, pathIndex) {
+			delete(DuplicatedDirectoriesFound, candidateHash)
+		}
+	}
+}
+
+type duplicatedDirectoryPathIndex map[string]uint64
+
+type nestedDirectoryCoverage struct {
+	childCount  int
+	parentPaths map[string]struct{}
+}
+
+func newDuplicatedDirectoryPathIndex(dupDirs map[uint64]DuplicatedDirectories) duplicatedDirectoryPathIndex {
+	index := make(duplicatedDirectoryPathIndex)
+	for hash, duplicated := range dupDirs {
+		for _, dir := range duplicated.ListDuplicated {
+			if dir == nil || dir.Path == "" {
 				continue
 			}
-
-			if duplicatedDirectoriesAreNested(candidate.ListDuplicated, parent.ListDuplicated) {
-				delete(DuplicatedDirectoriesFound, candidateHash)
-				break
-			}
-		}
-	}
-}
-
-func duplicatedDirectoriesAreNested(children, parents []*Directory) bool {
-	coveredParents := make(map[string]bool)
-
-	for _, child := range children {
-		matchedParent := false
-		for _, parent := range parents {
-			if isChildPath(parent.Path, child.Path) {
-				matchedParent = true
-				coveredParents[parent.Path] = true
-				break
-			}
-		}
-
-		if !matchedParent {
-			return false
+			index[filepath.Clean(dir.Path)] = hash
 		}
 	}
 
-	return len(coveredParents) >= 2
+	return index
 }
 
-func isChildPath(parent, child string) bool {
-	rel, err := filepath.Rel(parent, child)
-	if err != nil {
+func duplicatedDirectoryGroupIsNested(candidateHash uint64, dirs []*Directory, pathIndex duplicatedDirectoryPathIndex) bool {
+	if len(dirs) == 0 || len(pathIndex) == 0 {
 		return false
 	}
 
-	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	coverage := make(map[uint64]*nestedDirectoryCoverage)
+	seenInChild := make(map[uint64]int)
+	for childIndex, dir := range dirs {
+		if dir == nil || dir.Path == "" {
+			return false
+		}
+
+		for parentPath := filepath.Clean(filepath.Dir(dir.Path)); ; parentPath = filepath.Dir(parentPath) {
+			parentHash, ok := pathIndex[parentPath]
+			if ok && parentHash != candidateHash {
+				cover := coverage[parentHash]
+				if cover == nil {
+					cover = &nestedDirectoryCoverage{parentPaths: make(map[string]struct{})}
+					coverage[parentHash] = cover
+				}
+				cover.parentPaths[parentPath] = struct{}{}
+				if seenInChild[parentHash] != childIndex+1 {
+					cover.childCount++
+					seenInChild[parentHash] = childIndex + 1
+				}
+			}
+
+			nextParent := filepath.Dir(parentPath)
+			if nextParent == parentPath {
+				break
+			}
+		}
+	}
+
+	for _, cover := range coverage {
+		if cover.childCount == len(dirs) && len(cover.parentPaths) >= 2 {
+			return true
+		}
+	}
+
+	return false
 }

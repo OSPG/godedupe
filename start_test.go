@@ -73,12 +73,51 @@ func TestLoadExcludePatternsExpandsDefaultExcludeFile(t *testing.T) {
 	}
 }
 
+func TestConfigureOutputModeSuppressesProgressForPipedStdout(t *testing.T) {
+	oldStdout := os.Stdout
+	oldOpt := opt
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout pipe: %v", err)
+	}
+	os.Stdout = w
+	opt = Options{}
+	t.Cleanup(func() {
+		os.Stdout = oldStdout
+		opt = oldOpt
+		_ = r.Close()
+		_ = w.Close()
+	})
+
+	configureOutputMode()
+
+	if !opt.quiet {
+		t.Fatal("configureOutputMode left progress enabled for piped stdout")
+	}
+}
+
 func runGodedupeHelper(t *testing.T, args ...string) string {
+	return runGodedupeHelperWithEnv(t, nil, args...)
+}
+
+func runGodedupeHelperWithEnv(t *testing.T, env []string, args ...string) string {
 	t.Helper()
 
 	cmdArgs := append([]string{"-test.run=TestDuplicateDirectoriesOnlyHelper", "--"}, args...)
 	cmd := exec.Command(os.Args[0], cmdArgs...)
-	cmd.Env = append(os.Environ(), "GODEDUPE_HELPER_PROCESS=1")
+	if env == nil {
+		env = []string{"XDG_USER_DATA_DIR=" + filepath.Join(t.TempDir(), "godedupe")}
+	}
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "GODEDUPE_HELPER_PROCESS=") ||
+			strings.HasPrefix(entry, "XDG_USER_DATA_DIR=") ||
+			strings.HasPrefix(entry, "XDG_DATA_HOME=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, entry)
+	}
+	cmd.Env = append(cmd.Env, "GODEDUPE_HELPER_PROCESS=1")
+	cmd.Env = append(cmd.Env, env...)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -237,6 +276,203 @@ func TestDuplicateSubdirectoriesAndFilesAreBothReported(t *testing.T) {
 	}
 }
 
+func TestPipedOutputSuppressesProgressButKeepsReport(t *testing.T) {
+	root := t.TempDir()
+	aDir := filepath.Join(root, "a")
+	bDir := filepath.Join(root, "b")
+	aDupFile := filepath.Join(aDir, "same.txt")
+	bDupFile := filepath.Join(bDir, "same.txt")
+	excludeFile := filepath.Join(root, "exclude")
+
+	if err := os.MkdirAll(aDir, 0755); err != nil {
+		t.Fatalf("create directory a: %v", err)
+	}
+	if err := os.MkdirAll(bDir, 0755); err != nil {
+		t.Fatalf("create directory b: %v", err)
+	}
+	if err := os.WriteFile(aDupFile, []byte("same top-level"), 0644); err != nil {
+		t.Fatalf("write a/same.txt: %v", err)
+	}
+	if err := os.WriteFile(bDupFile, []byte("same top-level"), 0644); err != nil {
+		t.Fatalf("write b/same.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(aDir, "different.txt"), []byte("left"), 0644); err != nil {
+		t.Fatalf("write a/different.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bDir, "different.txt"), []byte("right"), 0644); err != nil {
+		t.Fatalf("write b/different.txt: %v", err)
+	}
+	if err := os.WriteFile(excludeFile, nil, 0644); err != nil {
+		t.Fatalf("write exclude file: %v", err)
+	}
+
+	output := runGodedupeHelper(t,
+		"-t", aDir,
+		"-t", bDir,
+		"--exclude-from", excludeFile,
+	)
+
+	if !strings.Contains(output, "Listing duplicateds for hash") {
+		t.Fatalf("output did not include final duplicate report:\n%s", output)
+	}
+	if !outputHasLine(output, aDupFile) || !outputHasLine(output, bDupFile) {
+		t.Fatalf("output did not include duplicated files:\n%s", output)
+	}
+	for _, progress := range []string{
+		"[+] Reading directory",
+		"[+] Analyzed:",
+		"[+] Stage",
+		"[+] From",
+		"[+] Starting",
+		"[+] Directory stage",
+	} {
+		if strings.Contains(output, progress) {
+			t.Fatalf("output included progress %q:\n%s", progress, output)
+		}
+	}
+}
+
+func TestDirectoriesOnlyReportsDirectoriesAndSkipsFiles(t *testing.T) {
+	root := t.TempDir()
+	aDir := filepath.Join(root, "a")
+	bDir := filepath.Join(root, "b")
+	aSubDir := filepath.Join(aDir, "sub")
+	bSubDir := filepath.Join(bDir, "sub")
+	aDupFile := filepath.Join(aDir, "same.txt")
+	bDupFile := filepath.Join(bDir, "same.txt")
+	excludeFile := filepath.Join(root, "exclude")
+
+	if err := os.MkdirAll(aSubDir, 0755); err != nil {
+		t.Fatalf("create subdirectory a: %v", err)
+	}
+	if err := os.MkdirAll(bSubDir, 0755); err != nil {
+		t.Fatalf("create subdirectory b: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(aSubDir, "inside.txt"), []byte("same inside"), 0644); err != nil {
+		t.Fatalf("write a/sub/inside.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bSubDir, "inside.txt"), []byte("same inside"), 0644); err != nil {
+		t.Fatalf("write b/sub/inside.txt: %v", err)
+	}
+	if err := os.WriteFile(aDupFile, []byte("same top-level"), 0644); err != nil {
+		t.Fatalf("write a/same.txt: %v", err)
+	}
+	if err := os.WriteFile(bDupFile, []byte("same top-level"), 0644); err != nil {
+		t.Fatalf("write b/same.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(aDir, "different.txt"), []byte("left"), 0644); err != nil {
+		t.Fatalf("write a/different.txt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bDir, "different.txt"), []byte("right"), 0644); err != nil {
+		t.Fatalf("write b/different.txt: %v", err)
+	}
+	if err := os.WriteFile(excludeFile, nil, 0644); err != nil {
+		t.Fatalf("write exclude file: %v", err)
+	}
+
+	output := runGodedupeHelper(t,
+		"-q",
+		"--directories-only",
+		"-t", aDir,
+		"-t", bDir,
+		"--exclude-from", excludeFile,
+	)
+
+	if !strings.Contains(output, "Listing duplicated directories for hash") {
+		t.Fatalf("output did not include directory duplicate report:\n%s", output)
+	}
+	if strings.Contains(output, "Listing duplicateds for hash") {
+		t.Fatalf("output included file duplicate report:\n%s", output)
+	}
+	if !outputHasLine(output, aSubDir) || !outputHasLine(output, bSubDir) {
+		t.Fatalf("output did not include duplicated subdirectories:\n%s", output)
+	}
+	if outputHasLine(output, aDupFile) || outputHasLine(output, bDupFile) {
+		t.Fatalf("output included duplicated files:\n%s", output)
+	}
+	if strings.Contains(output, "inside.txt") || strings.Contains(output, "different.txt") {
+		t.Fatalf("output included file paths:\n%s", output)
+	}
+}
+
+func TestDepthLimitedDirectoriesWithUnscannedChildrenAreNotReported(t *testing.T) {
+	root := t.TempDir()
+	aDir := filepath.Join(root, "a")
+	bDir := filepath.Join(root, "b")
+	excludeFile := filepath.Join(root, "exclude")
+
+	writeFile := func(path string, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("create parent directory: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	writeFile(filepath.Join(aDir, "same.txt"), "same top-level")
+	writeFile(filepath.Join(bDir, "same.txt"), "same top-level")
+	writeFile(filepath.Join(aDir, "sub", "inside.txt"), "left")
+	writeFile(filepath.Join(bDir, "sub", "inside.txt"), "right")
+	if err := os.WriteFile(excludeFile, nil, 0644); err != nil {
+		t.Fatalf("write exclude file: %v", err)
+	}
+
+	output := runGodedupeHelper(t,
+		"-q",
+		"-d", "1",
+		"-t", aDir,
+		"-t", bDir,
+		"--exclude-from", excludeFile,
+	)
+
+	if outputHasLine(output, aDir) || outputHasLine(output, bDir) {
+		t.Fatalf("output included depth-limited directory duplicates:\n%s", output)
+	}
+	if !outputHasLine(output, filepath.Join(aDir, "same.txt")) ||
+		!outputHasLine(output, filepath.Join(bDir, "same.txt")) {
+		t.Fatalf("output did not include duplicated files within depth:\n%s", output)
+	}
+}
+
+func TestDirectoryCacheCanBeDisabled(t *testing.T) {
+	root := t.TempDir()
+	aDir := filepath.Join(root, "a")
+	bDir := filepath.Join(root, "b")
+	dataDir := filepath.Join(root, "data")
+	excludeFile := filepath.Join(root, "exclude")
+
+	if err := os.MkdirAll(aDir, 0755); err != nil {
+		t.Fatalf("create a dir: %v", err)
+	}
+	if err := os.MkdirAll(bDir, 0755); err != nil {
+		t.Fatalf("create b dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(aDir, "same.txt"), []byte("same"), 0644); err != nil {
+		t.Fatalf("write a file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bDir, "same.txt"), []byte("same"), 0644); err != nil {
+		t.Fatalf("write b file: %v", err)
+	}
+	if err := os.WriteFile(excludeFile, nil, 0644); err != nil {
+		t.Fatalf("write exclude file: %v", err)
+	}
+
+	runGodedupeHelperWithEnv(t,
+		[]string{"XDG_USER_DATA_DIR=" + dataDir},
+		"-q",
+		"--directory-cache=false",
+		"-t", aDir,
+		"-t", bDir,
+		"--exclude-from", excludeFile,
+	)
+
+	cachePath := filepath.Join(dataDir, "directory-hashes.sqlite3")
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Fatalf("cache database stat error = %v, want not exist", err)
+	}
+}
+
 func TestSummaryCombinesDuplicatedDirectoriesAndFiles(t *testing.T) {
 	root := t.TempDir()
 	aDir := filepath.Join(root, "a")
@@ -301,9 +537,7 @@ func TestDuplicateDirectoriesOnlyHelper(t *testing.T) {
 	if err := flag.CommandLine.Parse(flag.Args()); err != nil {
 		t.Fatalf("parse helper args: %v", err)
 	}
-	if opt.SameLine {
-		opt.quiet = true
-	}
+	configureOutputMode()
 
 	start()
 	os.Exit(0)

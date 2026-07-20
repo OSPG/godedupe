@@ -91,7 +91,12 @@ func isComparableFile(file compare.File) bool {
 // readDir reads the files from the dir "s" recursively and checks if there are duplicated
 func readDir(s string, depth int) *compare.Directory {
 	depth++
-	dir := &compare.Directory{Path: s}
+	info, err := os.Stat(s)
+	if err != nil {
+		fmt.Printf("[-] Error reading %s: %s\n", s, err)
+		return nil
+	}
+	dir := &compare.Directory{Path: s, Info: info}
 
 	files, err := os.ReadDir(s)
 	if err != nil {
@@ -139,7 +144,9 @@ func readDir(s string, depth int) *compare.Directory {
 				Info: info,
 			}
 			if isComparableFile(file) {
-				compare.AddFile(file)
+				if !opt.directoriesOnly {
+					compare.AddFile(file)
+				}
 				dir.Files = append(dir.Files, file)
 			}
 		} else if opt.enableRecursion {
@@ -147,11 +154,17 @@ func readDir(s string, depth int) *compare.Directory {
 			if depth < opt.maxDepth || opt.maxDepth == -1 {
 				childDir := readDir(path, depth)
 				if childDir != nil {
+					if childDir.Incomplete {
+						dir.Incomplete = true
+					}
 					dir.Children = append(dir.Children, childDir)
 				}
+			} else {
+				dir.Incomplete = true
 			}
 		} else {
 			updateDir()
+			dir.Incomplete = true
 		}
 
 		if !opt.quiet {
@@ -212,9 +225,26 @@ func start() {
 		ShowNotification: opt.ShowNotification,
 		SameLine:         opt.SameLine,
 	}
+	if opt.directoryCache {
+		if err := compare.EnableDirectoryHashCache(); err != nil && !opt.quiet {
+			fmt.Printf("[?] Directory hash cache disabled: %s\n", err)
+		}
+		defer func() {
+			if err := compare.CloseDirectoryHashCache(); err != nil && !opt.quiet {
+				fmt.Printf("[?] Directory hash cache flush failed: %s\n", err)
+			}
+		}()
+	} else {
+		_ = compare.CloseDirectoryHashCache()
+	}
+
 	compare.ValidateDuplicatedDirectories(!opt.quiet)
-	compare.ValidateDuplicatedFiles(!opt.quiet)
-	dupFiles := compare.FilterFilesCoveredByDirectories(compare.DuplicatedFiles, compare.DuplicatedDirectoriesFound)
+	dupFiles := make(map[uint64]compare.Duplicated)
+	if !opt.directoriesOnly {
+		compare.PruneFileCandidatesCoveredByDirectories(compare.DuplicatedDirectoriesFound)
+		compare.ValidateDuplicatedFiles(!opt.quiet)
+		dupFiles = compare.FilterFilesCoveredByDirectories(compare.DuplicatedFiles, compare.DuplicatedDirectoriesFound, !opt.quiet)
+	}
 
 	displayOpts := reportOpts
 	displayOpts.ShowSummary = false
@@ -228,7 +258,7 @@ func start() {
 		reported = true
 	}
 
-	if len(dupFiles) > 0 || !reported {
+	if !opt.directoriesOnly && (len(dupFiles) > 0 || !reported) {
 		fileReport.DoReport()
 	}
 

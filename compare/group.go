@@ -25,11 +25,3 @@ func countItemsInGroups[K comparable, T any](groups map[K]duplicateGroup[T]) int
 	}
 	return count
 }
-
-func collectItemsInGroups[K comparable, T any](groups map[K]duplicateGroup[T]) []T {
-	var items []T
-	for _, group := range groups {
-		items = append(items, group.ListDuplicated...)
-	}
-	return items
-}
