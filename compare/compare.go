@@ -186,6 +186,11 @@ type fileHashGroup struct {
 	numBlocks int
 }
 
+type indexedFileHashGroupResult struct {
+	groupIndex int
+	results    []fileHashResult
+}
+
 func hashWorkerCount(jobCount int) int {
 	workers := runtime.GOMAXPROCS(0)
 	if workers > jobCount {
@@ -198,63 +203,53 @@ func hashWorkerCount(jobCount int) int {
 	return workers
 }
 
-func hashFiles(files []File, numBlocks int) []fileHashResult {
-	results := make([]fileHashResult, len(files))
-	if len(files) == 0 {
-		return results
+func hashFileGroups(groups []fileHashGroup, verbose bool, onGroupComplete func(int, []fileHashResult)) {
+	if len(groups) == 0 {
+		return
 	}
 
-	workers := hashWorkerCount(len(files))
-	if workers == 1 {
-		for i, file := range files {
-			results[i] = hashFile(file, numBlocks)
-		}
-		return results
-	}
-
+	workers := hashWorkerCount(len(groups))
 	jobs := make(chan int)
+	groupResults := make(chan indexedFileHashGroupResult, workers)
 	var wg sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for index := range jobs {
-				results[index] = hashFile(files[index], numBlocks)
+			for groupIndex := range jobs {
+				group := groups[groupIndex]
+				results := make([]fileHashResult, len(group.files))
+				for fileIndex, file := range group.files {
+					results[fileIndex] = hashFile(file, group.numBlocks)
+				}
+				groupResults <- indexedFileHashGroupResult{
+					groupIndex: groupIndex,
+					results:    results,
+				}
 			}
 		}()
 	}
 
-	for i := range files {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
+	go func() {
+		for groupIndex := range groups {
+			jobs <- groupIndex
+		}
+		close(jobs)
+		wg.Wait()
+		close(groupResults)
+	}()
 
-	return results
-}
-
-func hashFileGroups(groups []fileHashGroup, verbose bool, onGroupComplete func(int, []fileHashResult)) {
-	for groupIndex, group := range groups {
-		results := hashFiles(group.files, group.numBlocks)
+	completed := 0
+	for groupResult := range groupResults {
 		if onGroupComplete != nil {
-			onGroupComplete(groupIndex, results)
+			onGroupComplete(groupResult.groupIndex, groupResult.results)
 		}
+		completed++
 		if verbose {
-			fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(groups))
+			fmt.Printf("[+] %d / %d done\r", completed, len(groups))
 		}
 	}
-}
-
-func hashFileGroupResults(results []fileHashResult, dupMap map[uint64]Duplicated) {
-	for _, result := range results {
-		if result.ok {
-			addToGroup(dupMap, result.hash, result.file)
-		}
-	}
-}
-
-func compareFileGroups(groups []fileHashGroup, dupMap map[uint64]Duplicated, verbose bool) {
 }
 
 func compareSizeFileGroups(groups []fileHashGroup, verbose bool) {
@@ -263,7 +258,11 @@ func compareSizeFileGroups(groups []fileHashGroup, verbose bool) {
 		if groups[groupIndex].numBlocks == fullHashBlocks {
 			dupMap = DuplicatedFiles
 		}
-		hashFileGroupResults(results, dupMap)
+		for _, result := range results {
+			if result.ok {
+				addToGroup(dupMap, result.hash, result.file)
+			}
+		}
 	})
 }
 
@@ -338,7 +337,11 @@ func doFullFileCompare(verbose bool) {
 
 	fileGroups := duplicatedFileHashGroups(partialDuplicatedFiles, fullHashBlocks)
 	hashFileGroups(fileGroups, verbose, func(_ int, results []fileHashResult) {
-		hashFileGroupResults(results, DuplicatedFiles)
+		for _, result := range results {
+			if result.ok {
+				addToGroup(DuplicatedFiles, result.hash, result.file)
+			}
+		}
 	})
 	removeSingletonGroups(DuplicatedFiles)
 

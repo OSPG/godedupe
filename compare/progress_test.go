@@ -56,7 +56,7 @@ func TestFileHashGroupsReportSetProgressWhenVerbose(t *testing.T) {
 	}
 
 	output := captureStdout(t, func() {
-		compareFileGroups(groups, make(map[uint64]Duplicated), true)
+		hashFileGroups(groups, true, nil)
 	})
 
 	if !strings.Contains(output, "[+] 1 / 2 done") || !strings.Contains(output, "[+] 2 / 2 done") {
@@ -82,9 +82,9 @@ func TestFileHashGroupsDoNotReportProgressWhenQuiet(t *testing.T) {
 	writeTestFile(t, path, strings.Repeat("x", bufferSize*2))
 
 	output := captureStdout(t, func() {
-		compareFileGroups([]fileHashGroup{
+		hashFileGroups([]fileHashGroup{
 			{files: []File{testFile(t, path)}, numBlocks: fullHashBlocks},
-		}, make(map[uint64]Duplicated), false)
+		}, false, nil)
 	})
 
 	if output != "" {

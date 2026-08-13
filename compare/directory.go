@@ -311,40 +311,46 @@ func collectFilesForUncachedDirectories(dirs []*Directory, numBlocks int) []File
 
 func compareDirectoryGroups(dupDirs map[uint64]DuplicatedDirectories, numBlocks int, dupMap map[uint64]DuplicatedDirectories, verbose bool) {
 	dirGroups := directoryHashGroups(dupDirs)
+	fileGroups := make([]fileHashGroup, len(dirGroups))
+	cachedHashes := make([][]uint64, len(dirGroups))
+
 	for groupIndex, group := range dirGroups {
-		if compareCachedDirectoryGroup(group.dirs, numBlocks, dupMap) {
-			if verbose {
-				fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(dirGroups))
-			}
+		if hashes, ok := cachedDirectoryGroupHashes(group.dirs, numBlocks); ok {
+			cachedHashes[groupIndex] = hashes
 			continue
 		}
 
-		files := collectFilesForUncachedDirectories(group.dirs, numBlocks)
-		hashFiles(files, numBlocks)
+		fileGroups[groupIndex] = fileHashGroup{
+			files:     collectFilesForUncachedDirectories(group.dirs, numBlocks),
+			numBlocks: numBlocks,
+		}
+	}
+
+	hashFileGroups(fileGroups, verbose, func(groupIndex int, _ []fileHashResult) {
+		if hashes := cachedHashes[groupIndex]; hashes != nil {
+			for i, dir := range dirGroups[groupIndex].dirs {
+				addToGroup(dupMap, hashes[i], dir)
+			}
+			return
+		}
+
 		for _, dir := range dirGroups[groupIndex].dirs {
 			compareDirectory(dir, numBlocks, dupMap)
 		}
-		if verbose {
-			fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(dirGroups))
-		}
-	}
+	})
 }
 
-func compareCachedDirectoryGroup(dirs []*Directory, numBlocks int, dupMap map[uint64]DuplicatedDirectories) bool {
+func cachedDirectoryGroupHashes(dirs []*Directory, numBlocks int) ([]uint64, bool) {
 	hashes := make([]uint64, len(dirs))
 	for i, dir := range dirs {
 		hash, ok := cachedDirectoryContentHash(dir, numBlocks)
 		if !ok {
-			return false
+			return nil, false
 		}
 		hashes[i] = hash
 	}
 
-	for i, dir := range dirs {
-		addToGroup(dupMap, hashes[i], dir)
-	}
-
-	return true
+	return hashes, true
 }
 
 func appendUncachedDirectoryFiles(files []File, dir *Directory, numBlocks int, seen map[string]struct{}) []File {
