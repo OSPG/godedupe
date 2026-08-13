@@ -311,30 +311,23 @@ func collectFilesForUncachedDirectories(dirs []*Directory, numBlocks int) []File
 
 func compareDirectoryGroups(dupDirs map[uint64]DuplicatedDirectories, numBlocks int, dupMap map[uint64]DuplicatedDirectories, verbose bool) {
 	dirGroups := directoryHashGroups(dupDirs)
-	progress := newSetProgress(verbose, len(dirGroups))
-	var missingFileGroups []fileHashGroup
-	var missingGroupIndexes []int
-
 	for groupIndex, group := range dirGroups {
 		if compareCachedDirectoryGroup(group.dirs, numBlocks, dupMap) {
-			progress.doneGroup()
+			if verbose {
+				fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(dirGroups))
+			}
 			continue
 		}
 
 		files := collectFilesForUncachedDirectories(group.dirs, numBlocks)
-		missingFileGroups = append(missingFileGroups, fileHashGroup{
-			files:     files,
-			numBlocks: numBlocks,
-		})
-		missingGroupIndexes = append(missingGroupIndexes, groupIndex)
-	}
-
-	hashFileGroupsWithProgress(missingFileGroups, func(missingIndex int, _ []fileHashResult) {
-		groupIndex := missingGroupIndexes[missingIndex]
+		hashFiles(files, numBlocks)
 		for _, dir := range dirGroups[groupIndex].dirs {
 			compareDirectory(dir, numBlocks, dupMap)
 		}
-	}, progress.doneGroup)
+		if verbose {
+			fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(dirGroups))
+		}
+	}
 }
 
 func compareCachedDirectoryGroup(dirs []*Directory, numBlocks int, dupMap map[uint64]DuplicatedDirectories) bool {

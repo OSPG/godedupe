@@ -186,24 +186,6 @@ type fileHashGroup struct {
 	numBlocks int
 }
 
-type fileHashGroupState struct {
-	results   []fileHashResult
-	remaining int
-}
-
-type fileHashJob struct {
-	groupIndex int
-	fileIndex  int
-	file       File
-	numBlocks  int
-}
-
-type indexedFileHashResult struct {
-	groupIndex int
-	fileIndex  int
-	result     fileHashResult
-}
-
 func hashWorkerCount(jobCount int) int {
 	workers := runtime.GOMAXPROCS(0)
 	if workers > jobCount {
@@ -216,116 +198,52 @@ func hashWorkerCount(jobCount int) int {
 	return workers
 }
 
-func hashFileGroups(groups []fileHashGroup, verbose bool, onGroupComplete func(int, []fileHashResult)) {
-	progress := newSetProgress(verbose, len(groups))
-	hashFileGroupsWithProgress(groups, onGroupComplete, progress.doneGroup)
-}
-
-type setProgress struct {
-	verbose bool
-	done    int
-	total   int
-}
-
-func newSetProgress(verbose bool, total int) *setProgress {
-	if total == 0 {
-		return nil
+func hashFiles(files []File, numBlocks int) []fileHashResult {
+	results := make([]fileHashResult, len(files))
+	if len(files) == 0 {
+		return results
 	}
 
-	return &setProgress{verbose: verbose, total: total}
-}
-
-func (progress *setProgress) doneGroup() {
-	if progress == nil {
-		return
-	}
-
-	progress.done++
-	reportStageProgress(progress.verbose, progress.done, progress.total)
-}
-
-func hashFileGroupsWithProgress(groups []fileHashGroup, onGroupComplete func(int, []fileHashResult), onProgress func()) {
-	if len(groups) == 0 {
-		return
-	}
-
-	states, totalFiles := newFileHashGroupStates(groups)
-	completeGroup := func(groupIndex int) {
-		if onGroupComplete != nil {
-			onGroupComplete(groupIndex, states[groupIndex].results)
+	workers := hashWorkerCount(len(files))
+	if workers == 1 {
+		for i, file := range files {
+			results[i] = hashFile(file, numBlocks)
 		}
-		if onProgress != nil {
-			onProgress()
-		}
+		return results
 	}
 
-	for groupIndex, state := range states {
-		if state.remaining == 0 {
-			completeGroup(groupIndex)
-		}
-	}
-	if totalFiles == 0 {
-		return
-	}
-
-	workers := hashWorkerCount(totalFiles)
-	jobs := make(chan fileHashJob)
-	resultCh := make(chan indexedFileHashResult, workers)
+	jobs := make(chan int)
 	var wg sync.WaitGroup
 
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for job := range jobs {
-				resultCh <- indexedFileHashResult{
-					groupIndex: job.groupIndex,
-					fileIndex:  job.fileIndex,
-					result:     hashFile(job.file, job.numBlocks),
-				}
+			for index := range jobs {
+				results[index] = hashFile(files[index], numBlocks)
 			}
 		}()
 	}
 
-	go func() {
-		for groupIndex, group := range groups {
-			for fileIndex, file := range group.files {
-				jobs <- fileHashJob{
-					groupIndex: groupIndex,
-					fileIndex:  fileIndex,
-					file:       file,
-					numBlocks:  group.numBlocks,
-				}
-			}
-		}
-		close(jobs)
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	for result := range resultCh {
-		state := &states[result.groupIndex]
-		state.results[result.fileIndex] = result.result
-		state.remaining--
-		if state.remaining == 0 {
-			completeGroup(result.groupIndex)
-		}
+	for i := range files {
+		jobs <- i
 	}
+	close(jobs)
+	wg.Wait()
+
+	return results
 }
 
-func newFileHashGroupStates(groups []fileHashGroup) ([]fileHashGroupState, int) {
-	states := make([]fileHashGroupState, len(groups))
-	totalFiles := 0
-
-	for i, group := range groups {
-		states[i] = fileHashGroupState{
-			results:   make([]fileHashResult, len(group.files)),
-			remaining: len(group.files),
+func hashFileGroups(groups []fileHashGroup, verbose bool, onGroupComplete func(int, []fileHashResult)) {
+	for groupIndex, group := range groups {
+		results := hashFiles(group.files, group.numBlocks)
+		if onGroupComplete != nil {
+			onGroupComplete(groupIndex, results)
 		}
-		totalFiles += len(group.files)
+		if verbose {
+			fmt.Printf("[+] %d / %d done\r", groupIndex+1, len(groups))
+		}
 	}
-
-	return states, totalFiles
 }
 
 func hashFileGroupResults(results []fileHashResult, dupMap map[uint64]Duplicated) {
@@ -337,9 +255,6 @@ func hashFileGroupResults(results []fileHashResult, dupMap map[uint64]Duplicated
 }
 
 func compareFileGroups(groups []fileHashGroup, dupMap map[uint64]Duplicated, verbose bool) {
-	hashFileGroups(groups, verbose, func(_ int, results []fileHashResult) {
-		hashFileGroupResults(results, dupMap)
-	})
 }
 
 func compareSizeFileGroups(groups []fileHashGroup, verbose bool) {
@@ -388,12 +303,6 @@ func hashFile(file File, numBlocks int) fileHashResult {
 	return fileHashResult{file: file, hash: hash, ok: true}
 }
 
-func reportStageProgress(verbose bool, done int, total int) {
-	if verbose {
-		fmt.Printf("[+] %d / %d done\r", done, total)
-	}
-}
-
 func reportStageCompletion(verbose bool, progressPrinted bool, message string) {
 	if !verbose {
 		return
@@ -428,7 +337,9 @@ func doFullFileCompare(verbose bool) {
 	}
 
 	fileGroups := duplicatedFileHashGroups(partialDuplicatedFiles, fullHashBlocks)
-	compareFileGroups(fileGroups, DuplicatedFiles, verbose)
+	hashFileGroups(fileGroups, verbose, func(_ int, results []fileHashResult) {
+		hashFileGroupResults(results, DuplicatedFiles)
+	})
 	removeSingletonGroups(DuplicatedFiles)
 
 	reportStageCompletion(verbose, len(fileGroups) > 0, "[+] Stage 3 / 3 completed.")
